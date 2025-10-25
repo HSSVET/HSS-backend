@@ -106,31 +106,21 @@ steps:
         echo "✅ Build başarılı - jar üretildi"
         
         # --- START: Ensure Spring Boot reads Cloud Run's PORT and binds correctly ---
-        APP_YAML_FILE="src/main/resources/application.yaml"
-        echo "🔧 application.yaml kontrol ediliyor..."
+        echo "🔧 application.yaml Cloud Run için optimize ediliyor..."
         
         # Cloud Run için server.address ayarını ekle (YAML formatında)
-        if [ -f "$APP_YAML_FILE" ]; then
-          # Mevcut server.address ayarını kontrol et ve güncelle
-          if grep -q "address:" "$APP_YAML_FILE"; then
-            # Server address zaten var, güncelle
-            sed -i.bak 's/address:.*/address: 0.0.0.0/' "$APP_YAML_FILE"
-          else
-            # Server address yok, server bölümüne ekle
-            sed -i.bak '/^server:/a\  address: 0.0.0.0' "$APP_YAML_FILE"
-          fi
+        if [ -f "src/main/resources/application.yaml" ]; then
+          # Server address ayarını ekle/güncelle
+          sed -i.bak '/^server:/a\  address: 0.0.0.0' "src/main/resources/application.yaml"
           
-          # Management endpoints'i güncelle (health check için)
-          if grep -q "management:" "$APP_YAML_FILE"; then
-            # Management bölümü var, exposure.include'ı güncelle
-            sed -i.bak 's/include:.*/include: health,info/' "$APP_YAML_FILE"
-          fi
+          # Management endpoints'i sadece health ve info olarak sınırla
+          sed -i.bak 's/include:.*/include: health,info/' "src/main/resources/application.yaml"
+          
+          echo "✅ application.yaml Cloud Run için optimize edildi."
         else
           echo "❌ application.yaml dosyası bulunamadı!"
           exit 1
         fi
-        
-        echo "✅ application.yaml güncellendi (server.address ve management endpoints ayarlandı)."
         # --- END patch ---
     waitFor: ['maven-deps']
 
@@ -392,8 +382,8 @@ options:
   logging: CLOUD_LOGGING_ONLY
   machineType: 'E2_HIGHCPU_8'
   diskSizeGb: 100
-  substitution_option: 'ALLOW_LOOSE'
-  dynamic_substitutions: true
+  substitution_option: 'MUST_MATCH'
+  dynamic_substitutions: false
   env:
     - 'DOCKER_BUILDKIT=1'
     - 'MAVEN_OPTS=-Xmx2048m -XX:MaxPermSize=512m'
