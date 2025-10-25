@@ -26,16 +26,24 @@ steps:
           exit 1
         fi
         
+        # Java 21 kurulumu (sadece bir kez)
+        echo "☕ Java 21 kuruluyor..."
+        apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        export PATH=$JAVA_HOME/bin:$PATH
+        java -version
+        
         # Maven cache'ini optimize et
         mkdir -p /workspace/.m2/repository
-        export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
+        export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
         
         # Dependencies'leri indir ve cache'le
         ./mvnw -B dependency:go-offline \
           -Dmaven.repo.local=/workspace/.m2/repository \
           -Dmaven.test.skip=true \
           -Dmaven.javadoc.skip=true \
-          -Dmaven.source.skip=true
+          -Dmaven.source.skip=true \
+          -q
         
         # Cache'i koru
         echo "✅ Dependencies hazır ve cache'lenmiş!"
@@ -61,12 +69,18 @@ steps:
           ls -la
           exit 1
         fi
+        
+        # Java environment (maven-deps'ten geliyor)
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        export PATH=$JAVA_HOME/bin:$PATH
+        export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
+        
         if [ "${_ENVIRONMENT}" = "prod" ]; then
           echo "🔍 Production testleri - tüm testler..."
-          ./mvnw -B test -Dmaven.repo.local=/workspace/.m2/repository
+          ./mvnw -B test -Dmaven.repo.local=/workspace/.m2/repository -q
         else
           echo "⚡ Development testleri..."
-          ./mvnw -B test -Dtest=!*IntegrationTest -Dmaven.test.failure.ignore=true -Dmaven.repo.local=/workspace/.m2/repository
+          ./mvnw -B test -Dtest=!*IntegrationTest -Dmaven.test.failure.ignore=true -Dmaven.repo.local=/workspace/.m2/repository -q
         fi
         echo "✅ Testler başarılı!"
     waitFor: ['maven-deps']
@@ -92,7 +106,13 @@ steps:
           ls -la
           exit 1
         fi
-        ./mvnw -B clean package -DskipTests -Dmaven.repo.local=/workspace/.m2/repository
+        
+        # Java environment (maven-deps'ten geliyor)
+        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        export PATH=$JAVA_HOME/bin:$PATH
+        export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
+        
+        ./mvnw -B clean package -DskipTests -Dmaven.repo.local=/workspace/.m2/repository -q
         echo "✅ Build başarılı!"
     waitFor: ['maven-deps']
 
@@ -140,6 +160,8 @@ steps:
           --build-arg VCS_REF=${SHORT_SHA} \
           --build-arg ENVIRONMENT=${_ENVIRONMENT} \
           --progress=plain \
+          --memory=2g \
+          --memory-swap=2g \
           .
 
         echo "✅ Docker build başarılı!"
@@ -175,12 +197,18 @@ steps:
             cd hss-backend
           fi
           
+          # Java environment (maven-deps'ten geliyor)
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          export PATH=$JAVA_HOME/bin:$PATH
+          export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
+          
           ./mvnw -B flyway:migrate \
             -Dflyway.url="jdbc:postgresql:///hss_prod?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${_CONNECTION_NAME}" \
             -Dflyway.user="${_DB_USERNAME_PROD_SECRET}" \
             -Dflyway.password="${_DB_PASSWORD_PROD_SECRET}" \
             -Dflyway.locations=classpath:db/migration \
-            -Dflyway.baseline-on-migrate=true
+            -Dflyway.baseline-on-migrate=true \
+            -q
           
           echo "✅ Database migration tamamlandı!"
         else
@@ -330,16 +358,16 @@ substitutions:
 # Options (optimized for performance)
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'  # 8 vCPU, 8GB RAM - optimal for Maven + Docker
-  diskSizeGb: 100  # Increased for better caching
+  machineType: 'E2_HIGHCPU_4'  # 4 vCPU, 4GB RAM - daha ekonomik
+  diskSizeGb: 50  # Daha küçük disk
   substitution_option: 'ALLOW_LOOSE'
   dynamic_substitutions: true
   env:
     - 'DOCKER_BUILDKIT=1'
-    - 'MAVEN_OPTS=-Xmx2048m -XX:MaxPermSize=512m'  # Optimized Maven memory
-    - 'GRADLE_OPTS=-Xmx2048m -XX:MaxPermSize=512m'
+    - 'MAVEN_OPTS=-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication'  # Optimized Maven memory
+    - 'GRADLE_OPTS=-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication'
 
-timeout: '1200s'  # Increased timeout for complex builds
+timeout: '900s'  # 15 dakika - daha kısa timeout
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}'
