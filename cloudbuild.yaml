@@ -106,27 +106,31 @@ steps:
         echo "✅ Build başarılı - jar üretildi"
         
         # --- START: Ensure Spring Boot reads Cloud Run's PORT and binds correctly ---
-        APP_PROPS_FILE="src/main/resources/application.properties"
-        mkdir -p "$(dirname "$APP_PROPS_FILE")"
-        echo "🔧 application.properties kontrol ediliyor..."
+        APP_YAML_FILE="src/main/resources/application.yaml"
+        echo "🔧 application.yaml kontrol ediliyor..."
         
-        # Eğer dosya yoksa oluştur; varsa var olan server.port/server.address lines'larını güncelle
-        if [ -f "$APP_PROPS_FILE" ]; then
-          # Remove existing server.port/server.address lines to avoid duplicates
-          sed -i.bak -E '/^server\.port=|^server\.address=|^management\.endpoints\.web\.exposure\.include=|^management\.endpoint\.health\.show-details=/d' "$APP_PROPS_FILE" || true
+        # Cloud Run için server.address ayarını ekle (YAML formatında)
+        if [ -f "$APP_YAML_FILE" ]; then
+          # Mevcut server.address ayarını kontrol et ve güncelle
+          if grep -q "address:" "$APP_YAML_FILE"; then
+            # Server address zaten var, güncelle
+            sed -i.bak 's/address:.*/address: 0.0.0.0/' "$APP_YAML_FILE"
+          else
+            # Server address yok, server bölümüne ekle
+            sed -i.bak '/^server:/a\  address: 0.0.0.0' "$APP_YAML_FILE"
+          fi
+          
+          # Management endpoints'i güncelle (health check için)
+          if grep -q "management:" "$APP_YAML_FILE"; then
+            # Management bölümü var, exposure.include'ı güncelle
+            sed -i.bak 's/include:.*/include: health,info/' "$APP_YAML_FILE"
+          fi
         else
-          echo "# created by cloudbuild patch" > "$APP_PROPS_FILE"
+          echo "❌ application.yaml dosyası bulunamadı!"
+          exit 1
         fi
         
-        # Cloud Run friendly settings'i application.properties'e ekle
-        echo "server.port=\${PORT:8080}" >> "$APP_PROPS_FILE"
-        echo "server.address=0.0.0.0" >> "$APP_PROPS_FILE"
-        echo "" >> "$APP_PROPS_FILE"
-        echo "# Expose Actuator basic endpoints for health checks" >> "$APP_PROPS_FILE"
-        echo "management.endpoints.web.exposure.include=health,info" >> "$APP_PROPS_FILE"
-        echo "management.endpoint.health.show-details=always" >> "$APP_PROPS_FILE"
-        
-        echo "✅ application.properties güncellendi (server.port ve server.address ayarlandı)."
+        echo "✅ application.yaml güncellendi (server.address ve management endpoints ayarlandı)."
         # --- END patch ---
     waitFor: ['maven-deps']
 
