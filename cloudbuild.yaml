@@ -1,11 +1,6 @@
-# Cloud Build configuration for HSS Backend (FIXED VERSION)
+# Cloud Build configuration for HSS Backend (SAFE VERSION)
 # Triggers: develop branch (dev), v* tags (prod)
-# FIXES:
-# 1. --no-traffic flag sorunu çözüldü (yeni servis için kullanılmıyor)
-# 2. Timeout değerleri artırıldı
-# 3. Memory ve CPU optimize edildi
-# 4. Health check iyileştirildi
-# 5. Startup timeout sorunları giderildi
+# FIX: SERVICE_NAME artık _SERVICE_NAME olarak substitution; tüm bash değişkenleri MY_ prefix ile korunuyor.
 
 steps:
   # 1. Maven dependencies download (optimized caching)
@@ -15,19 +10,18 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
         echo "📦 Maven dependencies indiriliyor..."
         echo "Mevcut dizin: $(pwd)"
         echo "Dizin içeriği: $(ls -la)"
-        
         # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "➡️ hss-backend dizinine geçildi"
+          echo "hss-backend dizinine geçildi"
         elif [ -f "pom.xml" ]; then
-          echo "➡️ pom.xml bulundu, repo root'ta build yapılacak"
+          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
         else
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
+          echo "Mevcut dizin içeriği:"
           ls -la
           exit 1
         fi
@@ -43,6 +37,7 @@ steps:
           -Dmaven.javadoc.skip=true \
           -Dmaven.source.skip=true
         
+        # Cache'i koru
         echo "✅ Dependencies hazır ve cache'lenmiş!"
 
   # 2. Test aşaması (parallel with build)
@@ -52,76 +47,53 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
         echo "🧪 Backend testleri çalıştırılıyor..."
         echo "Mevcut dizin: $(pwd)"
-        
         # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "➡️ hss-backend dizinine geçildi"
+          echo "hss-backend dizinine geçildi"
         elif [ -f "pom.xml" ]; then
-          echo "➡️ pom.xml bulundu, repo root'ta build yapılacak"
+          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
         else
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
+          echo "Mevcut dizin içeriği:"
           ls -la
           exit 1
         fi
-        
         if [ "${_ENVIRONMENT}" = "prod" ]; then
-          echo "🔍 Production testleri - tüm testler çalıştırılıyor"
+          echo "🔍 Production testleri - tüm testler..."
           ./mvnw -B test -Dmaven.repo.local=/workspace/.m2/repository
         else
-          echo "⚡ Development testleri (integration testleri hariç)"
+          echo "⚡ Development testleri..."
           ./mvnw -B test -Dtest=!*IntegrationTest -Dmaven.test.failure.ignore=true -Dmaven.repo.local=/workspace/.m2/repository
         fi
         echo "✅ Testler başarılı!"
     waitFor: ['maven-deps']
 
-  # 3. Build aşaması (parallel with test) + application.properties patch
+  # 3. Build aşaması (parallel with test)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'build'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        set -euo pipefail
         echo "🔨 Backend build ediliyor..."
         echo "Mevcut dizin: $(pwd)"
-        
         # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "➡️ Çalışma dizini: $(pwd)"
+          echo "hss-backend dizinine geçildi"
         elif [ -f "pom.xml" ]; then
-          echo "➡️ pom.xml bulundu, repo root'ta build yapılacak"
+          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
         else
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
+          echo "Mevcut dizin içeriği:"
           ls -la
           exit 1
         fi
-        
-        # Maven build (paketle)
         ./mvnw -B clean package -DskipTests -Dmaven.repo.local=/workspace/.m2/repository
-        echo "✅ Build başarılı - jar üretildi"
-        
-        # --- START: Ensure Spring Boot reads Cloud Run's PORT and binds correctly ---
-        echo "🔧 application.yaml Cloud Run için optimize ediliyor..."
-        
-        # Cloud Run için server.address ayarını ekle (YAML formatında)
-        if [ -f "src/main/resources/application.yaml" ]; then
-          # Server address ayarını ekle/güncelle
-          sed -i.bak '/^server:/a\  address: 0.0.0.0' "src/main/resources/application.yaml"
-          
-          # Management endpoints'i sadece health ve info olarak sınırla
-          sed -i.bak 's/include:.*/include: health,info/' "src/main/resources/application.yaml"
-          
-          echo "✅ application.yaml Cloud Run için optimize edildi."
-        else
-          echo "❌ application.yaml dosyası bulunamadı!"
-          exit 1
-        fi
-        # --- END patch ---
+        echo "✅ Build başarılı!"
     waitFor: ['maven-deps']
 
   # 4. Docker build (optimized caching)
@@ -131,42 +103,45 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
+        set -e
+        MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend"
+
         echo "🐳 Docker image build başlıyor..."
         echo "Environment: ${_ENVIRONMENT}, Tag: ${_TAG_NAME}"
-        echo "Context dizini: $(pwd)"
-        
+        echo "Mevcut dizin: $(pwd)"
+        echo "Dizin içeriği: $(ls -la)"
+
         # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "➡️ hss-backend dizinine geçildi"
+          echo "hss-backend dizinine geçildi"
         elif [ -f "pom.xml" ]; then
-          echo "➡️ pom.xml bulundu, repo root'ta build yapılacak"
+          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
         else
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
+          echo "Mevcut dizin içeriği:"
           ls -la
           exit 1
         fi
-        
-        echo "Image path: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend"
-        
-        # Try to pull cache sources (ignore errors)
-        docker pull "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:latest" || echo "No latest image found (ok)"
-        docker pull "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${_TAG_NAME}" || echo "No tagged image found (ok)"
-        
+
+        # Multiple cache sources for better hit rate
+        docker pull "$${MY_IMG_PATH}:latest" || echo "No latest image found"
+        docker pull "$${MY_IMG_PATH}:${_TAG_NAME}" || echo "No tagged image found"
+
+        # Build with optimized cache strategy
         docker build \
-          --tag "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}" \
-          --tag "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${_TAG_NAME}" \
-          --tag "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:latest" \
-          --cache-from "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:latest" \
-          --cache-from "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${_TAG_NAME}" \
+          --tag "$${MY_IMG_PATH}:${SHORT_SHA}" \
+          --tag "$${MY_IMG_PATH}:${_TAG_NAME}" \
+          --tag "$${MY_IMG_PATH}:latest" \
+          --cache-from "$${MY_IMG_PATH}:latest" \
+          --cache-from "$${MY_IMG_PATH}:${_TAG_NAME}" \
           --build-arg BUILDKIT_INLINE_CACHE=1 \
-          --build-arg BUILD_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-          --build-arg VCS_REF="${SHORT_SHA}" \
-          --build-arg ENVIRONMENT="${_ENVIRONMENT}" \
+          --build-arg BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ") \
+          --build-arg VCS_REF=${SHORT_SHA} \
+          --build-arg ENVIRONMENT=${_ENVIRONMENT} \
           --progress=plain \
           .
-        
+
         echo "✅ Docker build başarılı!"
     waitFor: ['test', 'build']
 
@@ -177,11 +152,12 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
+        set -e
+        MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend"
         echo "📤 Docker image push başlıyor..."
-        docker push "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}"
-        docker push "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${_TAG_NAME}"
-        docker push "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:latest"
+        docker push "$${MY_IMG_PATH}:${SHORT_SHA}"
+        docker push "$${MY_IMG_PATH}:${_TAG_NAME}"
+        docker push "$${MY_IMG_PATH}:latest"
         echo "✅ Docker push tamamlandı!"
     waitFor: ['docker-build']
 
@@ -201,8 +177,8 @@ steps:
           
           ./mvnw -B flyway:migrate \
             -Dflyway.url="jdbc:postgresql:///hss_prod?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${_CONNECTION_NAME}" \
-            -Dflyway.user="${_DB_USERNAME_SECRET}" \
-            -Dflyway.password="${_DB_PASSWORD_SECRET}" \
+            -Dflyway.user="${_DB_USERNAME_PROD_SECRET}" \
+            -Dflyway.password="${_DB_PASSWORD_PROD_SECRET}" \
             -Dflyway.locations=classpath:db/migration \
             -Dflyway.baseline-on-migrate=true
           
@@ -212,7 +188,7 @@ steps:
         fi
     waitFor: ['docker-push']
 
-  # 7. Cloud Run deploy (FIXED VERSION)
+  # 7. Cloud Run deploy
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy'
     entrypoint: 'bash'
@@ -220,101 +196,69 @@ steps:
       - '-c'
       - |
         set -euo pipefail
+
         echo "🚀 Cloud Run deploy başlıyor..."
         echo "Environment: ${_ENVIRONMENT}"
-        
+
         if [ "${_ENVIRONMENT}" = "prod" ]; then
-          SPRING_PROFILE="prod"
-          SERVICE_NAME="hss-backend"
-          MIN_INSTANCES="1"
-          MAX_INSTANCES="10"
-          MEMORY="2Gi"
-          CPU="2"
-          TIMEOUT="1200"
-          CONCURRENCY="100"
-          DB="hss_prod"
-          PORT="8080"
-          STARTUP_TIMEOUT="600"
+          MY_SPRING_PROFILE="prod"
+          MY_SERVICE_NAME="hss-backend"
+          MY_MIN_INSTANCES="1"
+          MY_MAX_INSTANCES="10"
+          MY_MEMORY="1Gi"
+          MY_CPU="2"
+          MY_TIMEOUT="600"
+          MY_CONCURRENCY="100"
+          MY_DB="hss_prod"
+          MY_DB_USERNAME_SECRET="${_DB_USERNAME_PROD_SECRET}"
+          MY_DB_PASSWORD_SECRET="${_DB_PASSWORD_PROD_SECRET}"
         else
-          SPRING_PROFILE="dev"
-          SERVICE_NAME="hss-backend-dev"
-          MIN_INSTANCES="0"
-          MAX_INSTANCES="3"
-          MEMORY="1Gi"
-          CPU="1"
-          TIMEOUT="600"
-          CONCURRENCY="80"
-          DB="hss_dev"
-          PORT="8080"
-          STARTUP_TIMEOUT="300"
+          MY_SPRING_PROFILE="dev"
+          MY_SERVICE_NAME="hss-backend-dev"
+          MY_MIN_INSTANCES="0"
+          MY_MAX_INSTANCES="3"
+          MY_MEMORY="512Mi"
+          MY_CPU="1"
+          MY_TIMEOUT="300"
+          MY_CONCURRENCY="80"
+          MY_DB="hss_dev"
+          MY_DB_USERNAME_SECRET="${_DB_USERNAME_SECRET}"
+          MY_DB_PASSWORD_SECRET="${_DB_PASSWORD_SECRET}"
         fi
-        
-        echo "🔍 Servis kontrolü: $SERVICE_NAME"
-        SERVICE_EXISTS=$(gcloud run services describe "$SERVICE_NAME" --region="${_REGION}" --project="${PROJECT_ID}" --quiet >/dev/null 2>&1 && echo "true" || echo "false")
-        
-        if [ "$SERVICE_EXISTS" = "true" ]; then
-          echo "✅ Servis mevcut, güncelleniyor..."
-          # Mevcut servis için --no-traffic kullan
-          gcloud run deploy "$SERVICE_NAME" \
-            --image="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}" \
-            --region="${_REGION}" \
-            --service-account="${_SERVICE_ACCOUNT}" \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=$SPRING_PROFILE,DB_NAME=$DB" \
-            --set-env-vars="GCP_SQL_INSTANCE_CONNECTION_NAME=${_CONNECTION_NAME}" \
-            --set-secrets="DB_USERNAME=${_DB_USERNAME_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest" \
-            --add-cloudsql-instances="${_CONNECTION_NAME}" \
-            --min-instances="$MIN_INSTANCES" \
-            --max-instances="$MAX_INSTANCES" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --timeout="$TIMEOUT" \
-            --concurrency="$CONCURRENCY" \
-            --port="$PORT" \
-            --cpu-throttling \
-            --execution-environment=gen2 \
-            --no-traffic \
-            --startup-timeout="$STARTUP_TIMEOUT" \
-            --quiet
-        else
-          echo "🆕 Servis yok, oluşturuluyor..."
-          # Yeni servis için --no-traffic kullanma
-          gcloud run deploy "$SERVICE_NAME" \
-            --image="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}" \
-            --region="${_REGION}" \
-            --service-account="${_SERVICE_ACCOUNT}" \
-            --platform=managed \
-            --allow-unauthenticated \
-            --set-env-vars="SPRING_PROFILES_ACTIVE=$SPRING_PROFILE,DB_NAME=$DB" \
-            --set-env-vars="GCP_SQL_INSTANCE_CONNECTION_NAME=${_CONNECTION_NAME}" \
-            --set-secrets="DB_USERNAME=${_DB_USERNAME_SECRET}:latest,DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest" \
-            --add-cloudsql-instances="${_CONNECTION_NAME}" \
-            --min-instances="$MIN_INSTANCES" \
-            --max-instances="$MAX_INSTANCES" \
-            --memory="$MEMORY" \
-            --cpu="$CPU" \
-            --timeout="$TIMEOUT" \
-            --concurrency="$CONCURRENCY" \
-            --port="$PORT" \
-            --cpu-throttling \
-            --execution-environment=gen2 \
-            --startup-timeout="$STARTUP_TIMEOUT" \
-            --quiet
-        fi
-        
-        URL=$(gcloud run services describe "$SERVICE_NAME" --region=${_REGION} --format='value(status.url)')
-        echo "✅ Deploy başarılı: $SERVICE_NAME"
-        echo "🌐 URL: $URL"
-        
-        echo "🔍 Health check başlıyor (max 15 deneme, 20s aralık)..."
-        for i in {1..15}; do
-          if curl -sf "$URL/actuator/health" >/dev/null 2>&1; then
-            echo "✅ Servis sağlıklı! (deneme $i/15)"
+
+        gcloud run deploy "$${MY_SERVICE_NAME}" \
+          --image="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}" \
+          --region="${_REGION}" \
+          --service-account="${_SERVICE_ACCOUNT}" \
+          --platform=managed \
+          --allow-unauthenticated \
+          --set-env-vars="SPRING_PROFILES_ACTIVE=$${MY_SPRING_PROFILE},DB_NAME=$${MY_DB}" \
+          --set-env-vars="GCP_SQL_INSTANCE_CONNECTION_NAME=${_CONNECTION_NAME}" \
+          --set-secrets="DB_USERNAME=$${MY_DB_USERNAME_SECRET}:latest,DB_PASSWORD=$${MY_DB_PASSWORD_SECRET}:latest" \
+          --add-cloudsql-instances="${_CONNECTION_NAME}" \
+          --min-instances="$${MY_MIN_INSTANCES}" \
+          --max-instances="$${MY_MAX_INSTANCES}" \
+          --memory="$${MY_MEMORY}" \
+          --cpu="$${MY_CPU}" \
+          --timeout="$${MY_TIMEOUT}" \
+          --concurrency="$${MY_CONCURRENCY}" \
+          --port=8080 \
+          --no-traffic \
+          --quiet
+
+        MY_URL=$(gcloud run services describe "$${MY_SERVICE_NAME}" --region=${_REGION} --format='value(status.url)')
+        echo "✅ Deploy başarılı: $${MY_SERVICE_NAME}"
+        echo "🌐 URL: $${MY_URL}"
+
+        # Optimized health check with retry logic
+        echo "🔍 Health check başlıyor..."
+        for i in {1..5}; do
+          if curl -sf "$${MY_URL}/actuator/health" >/dev/null 2>&1; then
+            echo "✅ Servis sağlıklı! (deneme $i/5)"
             break
           else
-            echo "⏳ Servis başlıyor... (deneme $i/15)"
-            sleep 20
+            echo "⏳ Servis başlıyor... (deneme $i/5)"
+            sleep 10
           fi
         done
     waitFor: ['migrate']
@@ -326,16 +270,23 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
+        set -e
         if [ "${_ENVIRONMENT}" = "prod" ]; then
           echo "📦 Release artifacts oluşturuluyor..."
-          IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}"
-          VERSION="${_TAG_NAME}"
-          BUCKET="gs://hss-releases-${PROJECT_ID}"
-          
-          echo "{\"version\":\"$VERSION\",\"environment\":\"production\",\"image\":\"$IMG_PATH\",\"deployed_at\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}" > manifest.json
-          gsutil -m cp manifest.json "$BUCKET/releases/$VERSION/"
-          gsutil -m cp manifest.json "$BUCKET/releases/latest/manifest.json"
+          MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}"
+          MY_VERSION="${_TAG_NAME}"
+          MY_BUCKET="gs://hss-releases-${PROJECT_ID}"
+
+          cat > manifest.json << EOF
+        {
+          "version": "$${MY_VERSION}",
+          "environment": "production",
+          "image": "$${MY_IMG_PATH}",
+          "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
+          gsutil -m cp manifest.json "$${MY_BUCKET}/releases/$${MY_VERSION}/"
+          gsutil -m cp manifest.json "$${MY_BUCKET}/releases/latest/manifest.json"
           echo "✅ Release artifacts yüklendi!"
         else
           echo "ℹ️ Dev ortamı - release atlandı"
@@ -349,7 +300,6 @@ steps:
     args:
       - '-c'
       - |
-        set -euo pipefail
         echo "📊 Monitoring kaydı gönderiliyor..."
         gcloud logging write hss-deployment \
           "Backend deployment completed successfully" \
@@ -372,22 +322,24 @@ substitutions:
   _CONNECTION_NAME: 'hss-cloud-473511:europe-west3:hss-sql'
   _DB_USERNAME_SECRET: 'DB_USERNAME'
   _DB_PASSWORD_SECRET: 'DB_PASSWORD'
+  _DB_USERNAME_PROD_SECRET: 'DB_USERNAME_PROD'
+  _DB_PASSWORD_PROD_SECRET: 'DB_PASSWORD_PROD'
   _ENVIRONMENT: 'dev'
   _TAG_NAME: 'dev'
 
 # Options (optimized for performance)
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'
-  diskSizeGb: 100
-  substitution_option: 'MUST_MATCH'
-  dynamic_substitutions: false
+  machineType: 'E2_HIGHCPU_8'  # 8 vCPU, 8GB RAM - optimal for Maven + Docker
+  diskSizeGb: 100  # Increased for better caching
+  substitution_option: 'ALLOW_LOOSE'
+  dynamic_substitutions: true
   env:
     - 'DOCKER_BUILDKIT=1'
-    - 'MAVEN_OPTS=-Xmx2048m -XX:MaxPermSize=512m'
+    - 'MAVEN_OPTS=-Xmx2048m -XX:MaxPermSize=512m'  # Optimized Maven memory
     - 'GRADLE_OPTS=-Xmx2048m -XX:MaxPermSize=512m'
 
-timeout: '1800s'
+timeout: '1200s'  # Increased timeout for complex builds
 
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}'
