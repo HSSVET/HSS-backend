@@ -1,9 +1,9 @@
-# Cloud Build configuration for HSS Backend (OPTIMIZED & SAFE VERSION)
+# Cloud Build configuration for HSS Backend (FIXED: no invalid built-in substitutions)
 # Triggers: develop branch (dev), v* tags (prod)
-# Optimizations: Safer fallbacks, better caching, exponential backoff, improved logging
+# Optimizations: safer fallbacks, caching, backoff, improved logging
 
 steps:
-  # 1. Setup: Java + Maven dependencies download (CRITICAL STEP)
+  # 1) Setup: Java + Maven deps
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'setup'
     entrypoint: 'bash'
@@ -13,50 +13,50 @@ steps:
         set -euo pipefail
         echo "⚙️ Setup başlıyor..."
         echo "Mevcut dizin: $(pwd)"
-        
-        # Proje dizinini belirle ve workspace'e kaydet
-        if [ -d "hss-backend" ]; then
-          PROJECT_DIR="hss-backend"
+
+        # _PROJECT_DIR varsa kullan, yoksa otomatik bul
+        if [ -n "${_PROJECT_DIR:-}" ] && [ -d "${_PROJECT_DIR}" ]; then
+          EFFECTIVE_PROJECT_DIR="${_PROJECT_DIR}"
+          cd "${_PROJECT_DIR}"
+          echo "✅ _PROJECT_DIR kullanıldı: ${_PROJECT_DIR}"
+        elif [ -d "hss-backend" ]; then
+          EFFECTIVE_PROJECT_DIR="hss-backend"
           cd hss-backend
           echo "✅ hss-backend dizinine geçildi"
         elif [ -f "pom.xml" ]; then
-          PROJECT_DIR="."
+          EFFECTIVE_PROJECT_DIR="."
           echo "✅ Mevcut dizinde pom.xml bulundu"
         else
-          echo "❌ FATAL: hss-backend dizini veya pom.xml bulunamadı!"
-          echo "Mevcut dizin içeriği:"
+          echo "❌ FATAL: Proje dizini bulunamadı (hss-backend veya pom.xml yok)!"
           ls -la
           exit 1
         fi
-        
-        # Proje dizinini workspace'e kaydet (diğer step'ler için)
-        echo "${PROJECT_DIR}" > /workspace/project_dir.txt
-        echo "📝 Proje dizini kaydedildi: ${PROJECT_DIR}"
-        
-        # Java 21 kurulumu ve workspace'e taşıma
+
+        # Proje dizinini diğer adımlar için kaydet
+        echo "$${EFFECTIVE_PROJECT_DIR}" > /workspace/project_dir.txt
+        echo "📝 Proje dizini kaydedildi: $${EFFECTIVE_PROJECT_DIR}"
+
+        # Java 21 kurulumu
         echo "☕ Java 21 kuruluyor..."
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless > /dev/null 2>&1
-        
-        # Java'yı workspace'e kopyala (tüm step'ler erişebilir)
+
         echo "📦 Java workspace'e taşınıyor..."
         rsync -a /usr/lib/jvm/java-21-openjdk-amd64/ /workspace/java/
-        
-        # Java kurulumunu doğrula
+
         if [ ! -d "/workspace/java/bin" ]; then
           echo "❌ FATAL: Java kurulumu başarısız!"
           exit 1
         fi
-        
+
         export JAVA_HOME=/workspace/java
         export PATH=$JAVA_HOME/bin:$PATH
         java -version
-        
-        # Maven cache dizini oluştur
+
+        # Maven cache
         mkdir -p /workspace/.m2/repository
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
-        
-        # Dependencies'leri indir ve cache'le
+
         echo "📥 Maven dependencies indiriliyor..."
         ./mvnw -B dependency:go-offline \
           -Dmaven.repo.local=/workspace/.m2/repository \
@@ -64,17 +64,16 @@ steps:
           -Dmaven.javadoc.skip=true \
           -Dmaven.source.skip=true \
           -q 2>&1 | tee /workspace/setup.log || {
-          echo "❌ Dependency download başarısız! Log:"
-          cat /workspace/setup.log
+          echo "❌ Dependency download başarısız!"
+          tail -n 200 /workspace/setup.log || true
           exit 1
         }
-        
-        # Setup başarılı sinyali
+
         echo "SUCCESS" > /workspace/setup_status.txt
         echo "✅ Setup tamamlandı!"
     waitFor: []
 
-  # 2. Test aşaması (parallel with build)
+  # 2) Test
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'test'
     entrypoint: 'bash'
@@ -82,59 +81,45 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        echo "🧪 Backend testleri çalıştırılıyor..."
-        
-        # Setup başarılı mı kontrol et
-        if [ ! -f /workspace/setup_status.txt ] || [ "$(cat /workspace/setup_status.txt)" != "SUCCESS" ]; then
-          echo "❌ FATAL: Setup başarısız oldu, test çalıştırılamıyor!"
+        echo "🧪 Testler çalıştırılıyor..."
+
+        [ -f /workspace/setup_status.txt ] && [ "$(cat /workspace/setup_status.txt)" = "SUCCESS" ] || {
+          echo "❌ FATAL: Setup başarısız!"
           exit 1
-        fi
-        
-        # Proje dizinine geç
-        if [ -d "hss-backend" ]; then
+        }
+
+        # Kaydedilen proje dizinine geç (gerekirse)
+        if [ -f /workspace/project_dir.txt ]; then
+          PDIR="$(cat /workspace/project_dir.txt)"
+          [ "$PDIR" != "." ] && cd "$PDIR" || true
+        elif [ -d "hss-backend" ]; then
           cd hss-backend
         fi
-        
-        # Java'yı workspace'ten kullan (setup tarafından hazırlandı)
+
         export JAVA_HOME=/workspace/java
         export PATH=$JAVA_HOME/bin:$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
-        
-        # Java kontrolü
-        if [ ! -x "$JAVA_HOME/bin/java" ]; then
-          echo "❌ FATAL: Java bulunamadı!"
-          exit 1
-        fi
-        
-        echo "☕ Java version: $(java -version 2>&1 | head -n 1)"
-        
-        # Environment'a göre test stratejisi
+
+        [ -x "$JAVA_HOME/bin/java" ] || { echo "❌ FATAL: Java yok!"; exit 1; }
+        echo "☕ Java: $(java -version 2>&1 | head -n1)"
+
         if [ "${_ENVIRONMENT}" = "prod" ]; then
-          echo "🔍 Production testleri - tüm testler zorunlu..."
-          ./mvnw -B test \
-            -Dmaven.repo.local=/workspace/.m2/repository \
-            2>&1 | tee /workspace/test.log || {
-            echo "❌ Testler başarısız! Son 50 satır:"
-            tail -n 50 /workspace/test.log
-            exit 1
-          }
+          echo "🔍 Production testleri..."
+          ./mvnw -B test -Dmaven.repo.local=/workspace/.m2/repository \
+            2>&1 | tee /workspace/test.log
         else
-          echo "⚡ Development testleri - unit tests only..."
-          ./mvnw -B test \
-            -Dtest='!*IntegrationTest,!*E2ETest' \
+          echo "⚡ Development testleri (unit ağırlıklı)..."
+          ./mvnw -B test -Dtest='!*IntegrationTest,!*E2ETest' \
             -Dmaven.repo.local=/workspace/.m2/repository \
             2>&1 | tee /workspace/test.log || {
-            echo "⚠️ Bazı testler başarısız (dev ortamı)"
-            tail -n 30 /workspace/test.log
-            # Dev'de test failure tolere edilebilir (opsiyonel)
-            # exit 1  # Uncomment for strict mode
+            echo "⚠️ Dev ortamında bazı testler fail olabilir (non-blocking)"
           }
         fi
-        
-        echo "✅ Testler tamamlandı!"
+
+        echo "✅ Testler tamam!"
     waitFor: ['setup']
 
-  # 3. Build aşaması (parallel with test)
+  # 3) Build (parallel)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'build'
     entrypoint: 'bash'
@@ -142,56 +127,40 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        echo "🔨 Backend build ediliyor..."
-        
-        # Setup başarılı mı kontrol et
-        if [ ! -f /workspace/setup_status.txt ] || [ "$(cat /workspace/setup_status.txt)" != "SUCCESS" ]; then
-          echo "❌ FATAL: Setup başarısız oldu, build çalıştırılamıyor!"
+        echo "🔨 Build başlıyor..."
+
+        [ -f /workspace/setup_status.txt ] && [ "$(cat /workspace/setup_status.txt)" = "SUCCESS" ] || {
+          echo "❌ FATAL: Setup başarısız!"
           exit 1
-        fi
-        
-        # Proje dizinine geç
-        if [ -d "hss-backend" ]; then
+        }
+
+        if [ -f /workspace/project_dir.txt ]; then
+          PDIR="$(cat /workspace/project_dir.txt)"
+          [ "$PDIR" != "." ] && cd "$PDIR" || true
+        elif [ -d "hss-backend" ]; then
           cd hss-backend
         fi
-        
-        # Java'yı workspace'ten kullan
+
         export JAVA_HOME=/workspace/java
         export PATH=$JAVA_HOME/bin:$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
-        
-        # Java kontrolü
-        if [ ! -x "$JAVA_HOME/bin/java" ]; then
-          echo "❌ FATAL: Java bulunamadı!"
-          exit 1
-        fi
-        
-        echo "☕ Java version: $(java -version 2>&1 | head -n 1)"
-        
-        # Build with versioning
-        echo "🔨 Maven build başlıyor (version: ${SHORT_SHA})..."
-        ./mvnw -B clean package \
-          -DskipTests \
-          -Drevision=${SHORT_SHA} \
+        [ -x "$JAVA_HOME/bin/java" ] || { echo "❌ FATAL: Java yok!"; exit 1; }
+
+        echo "☕ Java: $(java -version 2>&1 | head -n1)"
+        echo "🔨 Maven package (revision=${SHORT_SHA})"
+        ./mvnw -B clean package -DskipTests -Drevision=${SHORT_SHA} \
           -Dmaven.repo.local=/workspace/.m2/repository \
           2>&1 | tee /workspace/build.log || {
           echo "❌ Build başarısız! Son 50 satır:"
           tail -n 50 /workspace/build.log
           exit 1
         }
-        
-        # JAR dosyasını doğrula
-        if [ ! -f target/*.jar ]; then
-          echo "❌ FATAL: JAR dosyası oluşturulamadı!"
-          ls -la target/
-          exit 1
-        fi
-        
-        echo "✅ Build başarılı! Artifact:"
-        ls -lh target/*.jar
+
+        ls -lh target/*.jar || { echo "❌ FATAL: JAR bulunamadı!"; exit 1; }
+        echo "✅ Build başarılı!"
     waitFor: ['setup']
 
-  # 4. Docker build (optimized caching with safer error handling)
+  # 4) Docker build
   - name: 'gcr.io/cloud-builders/docker'
     id: 'docker-build'
     entrypoint: 'bash'
@@ -201,36 +170,25 @@ steps:
         set -euo pipefail
         MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend"
 
-        echo "🐳 Docker image build başlıyor..."
-        echo "Environment: ${_ENVIRONMENT}, Tag: ${_TAG_NAME}"
-        
-        # Proje dizinine geç
-        if [ -d "hss-backend" ]; then
+        echo "🐳 Docker build..."
+        echo "Env: ${_ENVIRONMENT}, Tag: ${_TAG_NAME}"
+
+        if [ -f /workspace/project_dir.txt ]; then
+          PDIR="$(cat /workspace/project_dir.txt)"
+          [ "$PDIR" != "." ] && cd "$PDIR" || true
+        elif [ -d "hss-backend" ]; then
           cd hss-backend
         fi
         echo "📂 Çalışma dizini: $(pwd)"
-        
-        # Dockerfile kontrolü
-        if [ ! -f "Dockerfile" ]; then
-          echo "❌ FATAL: Dockerfile bulunamadı!"
-          ls -la
-          exit 1
-        fi
-        
-        # JAR kontrolü
-        if [ ! -f target/*.jar ]; then
-          echo "❌ FATAL: JAR dosyası bulunamadı!"
-          ls -la target/ || echo "target/ dizini yok!"
-          exit 1
-        fi
 
-        # Multiple cache sources (best-effort, errors tolerated)
-        echo "📦 Docker cache çekiliyor..."
-        docker pull "$${MY_IMG_PATH}:latest" 2>/dev/null || echo "ℹ️ Latest cache bulunamadı"
-        docker pull "$${MY_IMG_PATH}:${_TAG_NAME}" 2>/dev/null || echo "ℹ️ Tag cache bulunamadı"
+        [ -f Dockerfile ] || { echo "❌ FATAL: Dockerfile yok!"; ls -la; exit 1; }
+        ls -1 target/*.jar >/dev/null 2>&1 || { echo "❌ FATAL: JAR yok!"; exit 1; }
 
-        # Build with optimized cache strategy
-        echo "🔨 Docker build başlıyor..."
+        echo "📦 Cache pull denemeleri..."
+        docker pull "$${MY_IMG_PATH}:latest" 2>/dev/null || echo "ℹ️ latest cache yok"
+        docker pull "$${MY_IMG_PATH}:${_TAG_NAME}" 2>/dev/null || echo "ℹ️ tag cache yok"
+
+        echo "🔨 docker build"
         docker build \
           --tag "$${MY_IMG_PATH}:${SHORT_SHA}" \
           --tag "$${MY_IMG_PATH}:${_TAG_NAME}" \
@@ -246,17 +204,16 @@ steps:
           --memory=2g \
           --memory-swap=2g \
           . 2>&1 | tee /workspace/docker_build.log || {
-          echo "❌ Docker build başarısız! Son 100 satır:"
+          echo "❌ Docker build hata! Son 100 satır:"
           tail -n 100 /workspace/docker_build.log
           exit 1
         }
 
-        # Image doğrulama
-        docker images "$${MY_IMG_PATH}:${SHORT_SHA}"
+        docker images "$${MY_IMG_PATH}:${SHORT_SHA}" || true
         echo "✅ Docker build başarılı!"
     waitFor: ['test', 'build']
 
-  # 5. Docker push
+  # 5) Docker push
   - name: 'gcr.io/cloud-builders/docker'
     id: 'docker-push'
     entrypoint: 'bash'
@@ -265,32 +222,27 @@ steps:
       - |
         set -euo pipefail
         MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend"
-        
-        echo "📤 Docker images push ediliyor..."
-        
-        # Push with retry logic
+
+        echo "📤 Docker push..."
         for TAG in "${SHORT_SHA}" "${_TAG_NAME}" "latest"; do
           echo "⬆️ Pushing $${MY_IMG_PATH}:$${TAG}..."
-          for ATTEMPT in {1..3}; do
+          for ATTEMPT in 1 2 3; do
             if docker push "$${MY_IMG_PATH}:$${TAG}"; then
-              echo "✅ $${TAG} pushed successfully"
+              echo "✅ $${TAG} push ok"
               break
+            elif [ "$ATTEMPT" -lt 3 ]; then
+              echo "⚠️ Push retry $ATTEMPT/3"
+              sleep 5
             else
-              if [ $ATTEMPT -lt 3 ]; then
-                echo "⚠️ Push failed, retrying... (attempt $ATTEMPT/3)"
-                sleep 5
-              else
-                echo "❌ Push failed after 3 attempts: $${TAG}"
-                exit 1
-              fi
+              echo "❌ Push failed: $${TAG}"
+              exit 1
             fi
           done
         done
-        
-        echo "✅ Tüm images push edildi!"
+        echo "✅ Tüm tag'ler push edildi!"
     waitFor: ['docker-build']
 
-  # 6. Database Migration (sadece prod için) - SAFE with better error handling
+  # 6) Migration (only prod)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'migrate'
     entrypoint: 'bash'
@@ -298,40 +250,32 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        
         if [ "${_ENVIRONMENT}" != "prod" ]; then
           echo "ℹ️ Dev ortamı - migration atlandı"
           exit 0
         fi
-        
-        echo "🗄️ Production database migration başlıyor..."
-        
-        # Setup kontrolü
-        if [ ! -f /workspace/setup_status.txt ] || [ "$(cat /workspace/setup_status.txt)" != "SUCCESS" ]; then
-          echo "❌ FATAL: Setup başarısız oldu, migration çalıştırılamıyor!"
+
+        echo "🗄️ Prod migration..."
+        [ -f /workspace/setup_status.txt ] && [ "$(cat /workspace/setup_status.txt)" = "SUCCESS" ] || {
+          echo "❌ FATAL: Setup yok!"
           exit 1
-        fi
-        
-        # Proje dizinine geç
-        if [ -d "hss-backend" ]; then
+        }
+
+        if [ -f /workspace/project_dir.txt ]; then
+          PDIR="$(cat /workspace/project_dir.txt)"
+          [ "$PDIR" != "." ] && cd "$PDIR" || true
+        elif [ -d "hss-backend" ]; then
           cd hss-backend
         fi
-        
-        # Java'yı workspace'ten kullan
+
         export JAVA_HOME=/workspace/java
         export PATH=$JAVA_HOME/bin:$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
-        
-        # Java kontrolü
-        if [ ! -x "$JAVA_HOME/bin/java" ]; then
-          echo "❌ FATAL: Java bulunamadı!"
-          exit 1
-        fi
-        
-        echo "☕ Java version: $(java -version 2>&1 | head -n 1)"
-        
-        # Flyway migration (Flyway 11.x compatible parameters)
-        echo "🔄 Flyway migration çalıştırılıyor..."
+
+        [ -x "$JAVA_HOME/bin/java" ] || { echo "❌ FATAL: Java yok!"; exit 1; }
+        echo "☕ Java: $(java -version 2>&1 | head -n1)"
+
+        echo "🔄 Flyway migrate..."
         ./mvnw -B flyway:migrate \
           -Dflyway.url="jdbc:postgresql:///hss_prod?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${_CONNECTION_NAME}" \
           -Dflyway.user="${_DB_USERNAME_PROD_SECRET}" \
@@ -342,15 +286,15 @@ steps:
           -Dflyway.outOfOrder=false \
           -Dmaven.repo.local=/workspace/.m2/repository \
           2>&1 | tee /workspace/migration.log || {
-          echo "❌ Migration başarısız! Log:"
-          cat /workspace/migration.log
+          echo "❌ Migration hata! Log:"
+          tail -n 200 /workspace/migration.log || true
           exit 1
         }
-        
-        echo "✅ Database migration tamamlandı!"
+
+        echo "✅ Migration tamam!"
     waitFor: ['docker-push']
 
-  # 7. Cloud Run deploy (with better health check)
+  # 7) Deploy Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy'
     entrypoint: 'bash'
@@ -358,11 +302,9 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-
-        echo "🚀 Cloud Run deploy başlıyor..."
+        echo "🚀 Cloud Run deploy..."
         echo "Environment: ${_ENVIRONMENT}"
 
-        # Environment-specific configuration
         if [ "${_ENVIRONMENT}" = "prod" ]; then
           MY_SPRING_PROFILE="prod"
           MY_SERVICE_NAME="hss-backend"
@@ -389,8 +331,6 @@ steps:
           MY_DB_PASSWORD_SECRET="${_DB_PASSWORD_SECRET}"
         fi
 
-        # Deploy to Cloud Run
-        echo "📦 Deploying $${MY_SERVICE_NAME}..."
         gcloud run deploy "$${MY_SERVICE_NAME}" \
           --image="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}" \
           --region="${_REGION}" \
@@ -415,37 +355,26 @@ steps:
         echo "✅ Deploy başarılı: $${MY_SERVICE_NAME}"
         echo "🌐 URL: $${MY_URL}"
 
-        # Health check with exponential backoff (OPTIMIZED)
-        echo "🔍 Health check başlıyor (exponential backoff)..."
+        echo "🔍 Health check (exponential backoff)..."
         MAX_ATTEMPTS=6
-        for i in $(seq 1 $MAX_ATTEMPTS); do
-          echo "⏳ Deneme $i/$MAX_ATTEMPTS..."
-          
-          if curl -sf --max-time 10 --retry 2 --retry-delay 2 \
-             "$${MY_URL}/actuator/health" >/dev/null 2>&1; then
-            echo "✅ Servis sağlıklı! (deneme $i/$MAX_ATTEMPTS)"
-            
-            # Traffic route (optional, remove --no-traffic flag to auto-route)
-            # gcloud run services update-traffic "$${MY_SERVICE_NAME}" \
-            #   --to-latest \
-            #   --region=${_REGION}
-            
+        for i in $(seq 1 $$MAX_ATTEMPTS); do
+          echo "⏳ Deneme $$i/$$MAX_ATTEMPTS..."
+          if curl -sf --max-time 10 --retry 2 --retry-delay 2 "$${MY_URL}/actuator/health" >/dev/null 2>&1; then
+            echo "✅ Servis sağlıklı!"
             exit 0
           fi
-          
-          if [ $i -lt $MAX_ATTEMPTS ]; then
-            WAIT_TIME=$((2 ** i))  # Exponential: 2, 4, 8, 16, 32, 64 seconds
-            echo "⏳ Servis başlatılıyor... ${WAIT_TIME}sn bekleniyor"
-            sleep $WAIT_TIME
+          if [ $$i -lt $$MAX_ATTEMPTS ]; then
+            WAIT_TIME=$$((2 ** $$i))
+            echo "⏳ Bekleniyor: $${WAIT_TIME}s"
+            sleep $$WAIT_TIME
           fi
         done
-        
-        echo "⚠️ WARNING: Health check timeout, ancak deploy başarılı"
-        echo "ℹ️ Servis manuel olarak kontrol edilmeli: $${MY_URL}/actuator/health"
-        # Health check fail olsa bile deploy başarılı sayılır (non-blocking)
+
+        echo "⚠️ Health check timeout (deploy başarılı)"
+        echo "ℹ️ Manuel kontrol: $${MY_URL}/actuator/health"
     waitFor: ['migrate']
 
-  # 8. Release artifacts (only prod)
+  # 8) Release artifacts (prod only)
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'release'
     entrypoint: 'bash'
@@ -453,18 +382,16 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        
         if [ "${_ENVIRONMENT}" != "prod" ]; then
           echo "ℹ️ Dev ortamı - release atlandı"
           exit 0
         fi
-        
-        echo "📦 Release artifacts oluşturuluyor..."
+
+        echo "📦 Release artifacts hazırlanıyor..."
         MY_IMG_PATH="${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}"
         MY_VERSION="${_TAG_NAME}"
         MY_BUCKET="gs://hss-releases-${PROJECT_ID}"
 
-        # Create release manifest
         cat > /workspace/manifest.json << EOF
         {
           "version": "$${MY_VERSION}",
@@ -475,27 +402,24 @@ steps:
           "deployed_by": "${BUILD_ID}"
         }
         EOF
-        
-        # Upload with retry
-        echo "⬆️ Release artifacts yükleniyor..."
-        for ATTEMPT in {1..3}; do
+
+        echo "⬆️ Yükleniyor..."
+        for ATTEMPT in 1 2 3; do
           if gsutil -m cp /workspace/manifest.json "$${MY_BUCKET}/releases/$${MY_VERSION}/manifest.json" && \
              gsutil -m cp /workspace/manifest.json "$${MY_BUCKET}/releases/latest/manifest.json"; then
             echo "✅ Release artifacts yüklendi!"
             exit 0
+          elif [ "$ATTEMPT" -lt 3 ]; then
+            echo "⚠️ Retry $ATTEMPT/3"
+            sleep 3
           else
-            if [ $ATTEMPT -lt 3 ]; then
-              echo "⚠️ Upload failed, retrying... (attempt $ATTEMPT/3)"
-              sleep 3
-            else
-              echo "⚠️ WARNING: Release artifact upload başarısız (non-critical)"
-              exit 0  # Non-blocking
-            fi
+            echo "⚠️ Uyarı: Release yüklenemedi (non-critical)"
+            exit 0
           fi
         done
     waitFor: ['deploy']
 
-  # 9. Monitoring metrics (parallel with release)
+  # 9) Monitoring
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'monitoring'
     entrypoint: 'bash'
@@ -503,8 +427,7 @@ steps:
       - '-c'
       - |
         set -euo pipefail
-        echo "📊 Monitoring kaydı gönderiliyor..."
-        
+        echo "📊 Monitoring log gönderiliyor..."
         gcloud logging write hss-deployment \
           "Backend deployment completed successfully" \
           --severity=INFO \
@@ -517,13 +440,12 @@ steps:
             \"build_id\": \"${BUILD_ID}\",
             \"deployment_time\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"
           }" || {
-          echo "⚠️ WARNING: Monitoring gönderilemedi (non-critical)"
+          echo "⚠️ Monitoring gönderilemedi (non-critical)"
         }
-        
-        echo "✅ Monitoring tamamlandı!"
+        echo "✅ Monitoring tamam!"
     waitFor: ['deploy']
 
-# Substitution variables
+# Substitutions (FIXED: only custom keys prefixed with _)
 substitutions:
   _REGION: 'europe-west3'
   _REPO_NAME: 'hss-backend'
@@ -535,21 +457,20 @@ substitutions:
   _DB_PASSWORD_PROD_SECRET: 'DB_PASSWORD_PROD'
   _ENVIRONMENT: 'dev'
   _TAG_NAME: 'dev'
+  # İstersen sabitle: _PROJECT_DIR: 'hss-backend'
 
-# Options (optimized for performance & reliability)
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_HIGHCPU_8'  # 8 vCPU, 8GB RAM - optimal for parallel tasks
-  diskSizeGb: 50  # Reasonable disk size
+  machineType: 'E2_HIGHCPU_8'
+  diskSizeGb: 50
   substitution_option: 'ALLOW_LOOSE'
-  dynamic_substitutions: false  # Bash variables korunur
+  dynamic_substitutions: false
   env:
     - 'DOCKER_BUILDKIT=1'
     - 'MAVEN_OPTS=-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication'
 
-timeout: '1200s'  # 20 dakika - güvenli timeout
+timeout: '1200s'
 
-# Images to be stored in Artifact Registry
 images:
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO_NAME}/hss-backend:${_TAG_NAME}'
