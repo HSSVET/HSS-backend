@@ -220,11 +220,15 @@ steps:
           export PATH=$$JAVA_HOME/bin:$$PATH
           export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
           
+          # Secret değerlerini Secret Manager'dan çek
+          export DB_USERNAME=$(gcloud secrets versions access latest --secret="${_DB_USERNAME_PROD_SECRET}")
+          export DB_PASSWORD=$(gcloud secrets versions access latest --secret="${_DB_PASSWORD_PROD_SECRET}")
+          
           # FIX: Flyway 11.x için doğru parametre formatı (camelCase)
           ./mvnw -B flyway:migrate \
             -Dflyway.url="jdbc:postgresql:///hss_prod?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${_CONNECTION_NAME}" \
-            -Dflyway.user="${_DB_USERNAME_PROD_SECRET}" \
-            -Dflyway.password="${_DB_PASSWORD_PROD_SECRET}" \
+            -Dflyway.user="$${DB_USERNAME}" \
+            -Dflyway.password="$${DB_PASSWORD}" \
             -Dflyway.locations=classpath:db/migration \
             -Dflyway.baselineOnMigrate=true \
             -Dflyway.validateOnMigrate=false \
