@@ -25,18 +25,14 @@ steps:
           exit 1
         fi
         
-        # Java 21 kurulumu - workspace'te saklanacak (TÜM ADIMLAR İÇİN)
-        if [ ! -d "/workspace/java" ]; then
-          echo "☕ Java 21 kuruluyor..."
-          apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless
-          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-          # Java'yı workspace'e kopyala ki diğer adımlarda kullanılsın
-          mkdir -p /workspace/java
-          cp -r $$JAVA_HOME/* /workspace/java/
-          echo "✅ Java workspace'e kaydedildi"
-        else
-          echo "✅ Java workspace'ten alınıyor"
-        fi
+        # Java 21 kurulumu ve workspace'e taşıma
+        echo "☕ Java 21 kuruluyor..."
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless > /dev/null 2>&1
+        
+        # Java'yı tüm dependency'leri ile workspace'e kopyala (Cloud Build workspace paylaşımı)
+        echo "📦 Java workspace'e taşınıyor..."
+        rsync -a /usr/lib/jvm/java-21-openjdk-amd64/ /workspace/java/
         
         export JAVA_HOME=/workspace/java
         export PATH=$$JAVA_HOME/bin:$$PATH
@@ -72,8 +68,17 @@ steps:
           exit 1
         fi
         
-        # Workspace'ten Java'yı kullan
-        export JAVA_HOME=/workspace/java
+        # Workspace'ten Java kullan (setup tarafından hazırlandı)
+        if [ -d "/workspace/java" ]; then
+          export JAVA_HOME=/workspace/java
+          echo "✅ Java workspace'ten kullanılıyor"
+        else
+          # Fallback: Java kur (setup başarısız olmuşsa)
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless > /dev/null 2>&1
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          echo "⚠️ Java kurulumu yapılıyor (fallback)"
+        fi
         export PATH=$$JAVA_HOME/bin:$$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
         
@@ -102,8 +107,17 @@ steps:
           exit 1
         fi
         
-        # Workspace'ten Java'yı kullan
-        export JAVA_HOME=/workspace/java
+        # Workspace'ten Java kullan (setup tarafından hazırlandı)
+        if [ -d "/workspace/java" ]; then
+          export JAVA_HOME=/workspace/java
+          echo "✅ Java workspace'ten kullanılıyor"
+        else
+          # Fallback: Java kur (setup başarısız olmuşsa)
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless > /dev/null 2>&1
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          echo "⚠️ Java kurulumu yapılıyor (fallback)"
+        fi
         export PATH=$$JAVA_HOME/bin:$$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
         
@@ -192,8 +206,17 @@ steps:
             cd hss-backend
           fi
           
-          # Workspace'ten Java'yı kullan
-          export JAVA_HOME=/workspace/java
+          # Workspace'ten Java kullan
+          if [ -d "/workspace/java" ]; then
+            export JAVA_HOME=/workspace/java
+            echo "✅ Java workspace'ten kullanılıyor"
+          else
+            # Fallback: Java kur
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless > /dev/null 2>&1
+            export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+            echo "⚠️ Java kurulumu yapılıyor (fallback)"
+          fi
           export PATH=$$JAVA_HOME/bin:$$PATH
           export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
           
