@@ -91,8 +91,9 @@ steps:
         fi
         
         # Proje dizinine geç
-        PROJECT_DIR=$(cat /workspace/project_dir.txt)
-        cd "$PROJECT_DIR"
+        if [ -d "hss-backend" ]; then
+          cd hss-backend
+        fi
         
         # Java'yı workspace'ten kullan (setup tarafından hazırlandı)
         export JAVA_HOME=/workspace/java
@@ -150,8 +151,9 @@ steps:
         fi
         
         # Proje dizinine geç
-        PROJECT_DIR=$(cat /workspace/project_dir.txt)
-        cd "$PROJECT_DIR"
+        if [ -d "hss-backend" ]; then
+          cd hss-backend
+        fi
         
         # Java'yı workspace'ten kullan
         export JAVA_HOME=/workspace/java
@@ -203,8 +205,9 @@ steps:
         echo "Environment: ${_ENVIRONMENT}, Tag: ${_TAG_NAME}"
         
         # Proje dizinine geç
-        PROJECT_DIR=$(cat /workspace/project_dir.txt)
-        cd "$PROJECT_DIR"
+        if [ -d "hss-backend" ]; then
+          cd hss-backend
+        fi
         echo "📂 Çalışma dizini: $(pwd)"
         
         # Dockerfile kontrolü
@@ -310,8 +313,9 @@ steps:
         fi
         
         # Proje dizinine geç
-        PROJECT_DIR=$(cat /workspace/project_dir.txt)
-        cd "$PROJECT_DIR"
+        if [ -d "hss-backend" ]; then
+          cd hss-backend
+        fi
         
         # Java'yı workspace'ten kullan
         export JAVA_HOME=/workspace/java
