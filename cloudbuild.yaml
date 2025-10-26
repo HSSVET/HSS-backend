@@ -3,16 +3,15 @@
 # FIX: SERVICE_NAME artık _SERVICE_NAME olarak substitution; tüm bash değişkenleri MY_ prefix ile korunuyor.
 
 steps:
-  # 1. Maven dependencies download (optimized caching)
+  # 1. Setup: Java + Maven dependencies download
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'maven-deps'
+    id: 'setup'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "📦 Maven dependencies indiriliyor..."
+        echo "⚙️ Setup başlıyor..."
         echo "Mevcut dizin: $(pwd)"
-        echo "Dizin içeriği: $(ls -la)"
         # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
@@ -26,10 +25,20 @@ steps:
           exit 1
         fi
         
-        # Java 21 kurulumu (sadece bir kez)
-        echo "☕ Java 21 kuruluyor..."
-        apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless
-        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        # Java 21 kurulumu - workspace'te saklanacak (TÜM ADIMLAR İÇİN)
+        if [ ! -d "/workspace/java" ]; then
+          echo "☕ Java 21 kuruluyor..."
+          apt-get update -qq && apt-get install -y -qq openjdk-21-jdk-headless
+          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          # Java'yı workspace'e kopyala ki diğer adımlarda kullanılsın
+          mkdir -p /workspace/java
+          cp -r $$JAVA_HOME/* /workspace/java/
+          echo "✅ Java workspace'e kaydedildi"
+        else
+          echo "✅ Java workspace'ten alınıyor"
+        fi
+        
+        export JAVA_HOME=/workspace/java
         export PATH=$$JAVA_HOME/bin:$$PATH
         java -version
         
@@ -45,8 +54,8 @@ steps:
           -Dmaven.source.skip=true \
           -q
         
-        # Cache'i koru
-        echo "✅ Dependencies hazır ve cache'lenmiş!"
+        echo "✅ Setup tamamlandı!"
+    waitFor: []
 
   # 2. Test aşaması (parallel with build)
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -56,22 +65,15 @@ steps:
       - '-c'
       - |
         echo "🧪 Backend testleri çalıştırılıyor..."
-        echo "Mevcut dizin: $(pwd)"
-        # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "hss-backend dizinine geçildi"
-        elif [ -f "pom.xml" ]; then
-          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
-        else
+        elif [ ! -f "pom.xml" ]; then
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
-          echo "Mevcut dizin içeriği:"
-          ls -la
           exit 1
         fi
         
-        # Java environment (maven-deps'ten geliyor)
-        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        # Workspace'ten Java'yı kullan
+        export JAVA_HOME=/workspace/java
         export PATH=$$JAVA_HOME/bin:$$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
         
@@ -83,7 +85,7 @@ steps:
           ./mvnw -B test -Dtest=!*IntegrationTest -Dmaven.test.failure.ignore=true -Dmaven.repo.local=/workspace/.m2/repository -q
         fi
         echo "✅ Testler başarılı!"
-    waitFor: ['maven-deps']
+    waitFor: ['setup']
 
   # 3. Build aşaması (parallel with test)
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -93,28 +95,21 @@ steps:
       - '-c'
       - |
         echo "🔨 Backend build ediliyor..."
-        echo "Mevcut dizin: $(pwd)"
-        # Root dizinden hss-backend'e geç veya mevcut dizinde kal
         if [ -d "hss-backend" ]; then
           cd hss-backend
-          echo "hss-backend dizinine geçildi"
-        elif [ -f "pom.xml" ]; then
-          echo "Mevcut dizinde pom.xml bulundu, burada kalıyoruz"
-        else
+        elif [ ! -f "pom.xml" ]; then
           echo "❌ hss-backend dizini veya pom.xml bulunamadı!"
-          echo "Mevcut dizin içeriği:"
-          ls -la
           exit 1
         fi
         
-        # Java environment (maven-deps'ten geliyor)
-        export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+        # Workspace'ten Java'yı kullan
+        export JAVA_HOME=/workspace/java
         export PATH=$$JAVA_HOME/bin:$$PATH
         export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
         
         ./mvnw -B clean package -DskipTests -Dmaven.repo.local=/workspace/.m2/repository -q
         echo "✅ Build başarılı!"
-    waitFor: ['maven-deps']
+    waitFor: ['setup']
 
   # 4. Docker build (optimized caching)
   - name: 'gcr.io/cloud-builders/docker'
@@ -197,8 +192,8 @@ steps:
             cd hss-backend
           fi
           
-          # Java environment (maven-deps'ten geliyor)
-          export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+          # Workspace'ten Java'yı kullan
+          export JAVA_HOME=/workspace/java
           export PATH=$$JAVA_HOME/bin:$$PATH
           export MAVEN_OPTS="-Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication"
           
