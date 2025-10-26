@@ -97,6 +97,9 @@ public class BreedServiceImpl implements BreedService {
             if (breedRepository.findByNameAndSpeciesSpeciesId(request.getName(), request.getSpeciesId()).isPresent()) {
                 throw new DuplicateResourceException("Breed with name '" + request.getName() + "' already exists for this species");
             }
+            
+            // Update the breed's species
+            breed.setSpecies(species);
         }
         
         BreedMapper.updateEntity(breed, request);
