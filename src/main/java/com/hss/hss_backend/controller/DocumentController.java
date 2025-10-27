@@ -1,13 +1,11 @@
 package com.hss.hss_backend.controller;
 
-import com.hss.hss_backend.dto.DocumentCreateDTO;
-import com.hss.hss_backend.dto.DocumentResponseDTO;
-import com.hss.hss_backend.dto.DocumentUpdateDTO;
-import com.hss.hss_backend.entity.Document;
+import com.hss.hss_backend.dto.request.DocumentCreateRequest;
+import com.hss.hss_backend.dto.request.DocumentUpdateRequest;
+import com.hss.hss_backend.dto.response.DocumentResponse;
 import com.hss.hss_backend.service.DocumentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,7 +14,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -29,39 +26,39 @@ public class DocumentController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<Page<DocumentResponseDTO>> getAllDocuments(Pageable pageable) {
+    public ResponseEntity<Page<DocumentResponse>> getAllDocuments(Pageable pageable) {
         log.info("Getting all documents with pagination");
 
-        Page<DocumentResponseDTO> documents = documentService.getAllDocuments(pageable);
+        Page<DocumentResponse> documents = documentService.getAllDocuments(pageable);
         return ResponseEntity.ok(documents);
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<DocumentResponseDTO> getDocumentById(@PathVariable Long id) {
+    public ResponseEntity<DocumentResponse> getDocumentById(@PathVariable Long id) {
         log.info("Getting document by id: {}", id);
 
-        DocumentResponseDTO document = documentService.getDocumentById(id);
+        DocumentResponse document = documentService.getDocumentById(id);
         return ResponseEntity.ok(document);
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<DocumentResponseDTO> createDocument(@Valid @RequestBody DocumentCreateDTO createDTO) {
-        log.info("Creating document: {}", createDTO.getTitle());
+    public ResponseEntity<DocumentResponse> createDocument(@Valid @RequestBody DocumentCreateRequest request) {
+        log.info("Creating document: {}", request.getTitle());
 
-        DocumentResponseDTO document = documentService.createDocument(createDTO);
+        DocumentResponse document = documentService.createDocument(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(document);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<DocumentResponseDTO> updateDocument(
+    public ResponseEntity<DocumentResponse> updateDocument(
             @PathVariable Long id,
-            @Valid @RequestBody DocumentUpdateDTO updateDTO) {
+            @Valid @RequestBody DocumentUpdateRequest request) {
         log.info("Updating document with id: {}", id);
 
-        DocumentResponseDTO document = documentService.updateDocument(id, updateDTO);
+        DocumentResponse document = documentService.updateDocument(id, request);
         return ResponseEntity.ok(document);
     }
 
@@ -76,62 +73,28 @@ public class DocumentController {
 
     @GetMapping("/owner/{ownerId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByOwnerId(@PathVariable Long ownerId) {
+    public ResponseEntity<List<DocumentResponse>> getDocumentsByOwner(@PathVariable Long ownerId) {
         log.info("Getting documents by owner id: {}", ownerId);
 
-        List<DocumentResponseDTO> documents = documentService.getDocumentsByOwnerId(ownerId);
+        List<DocumentResponse> documents = documentService.getDocumentsByOwner(ownerId);
         return ResponseEntity.ok(documents);
     }
 
     @GetMapping("/animal/{animalId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByAnimalId(@PathVariable Long animalId) {
+    public ResponseEntity<List<DocumentResponse>> getDocumentsByAnimal(@PathVariable Long animalId) {
         log.info("Getting documents by animal id: {}", animalId);
 
-        List<DocumentResponseDTO> documents = documentService.getDocumentsByAnimalId(animalId);
-        return ResponseEntity.ok(documents);
-    }
-
-    @GetMapping("/type/{documentType}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByType(
-            @PathVariable Document.DocumentType documentType) {
-        log.info("Getting documents by type: {}", documentType);
-
-        List<DocumentResponseDTO> documents = documentService.getDocumentsByType(documentType);
+        List<DocumentResponse> documents = documentService.getDocumentsByAnimal(animalId);
         return ResponseEntity.ok(documents);
     }
 
     @GetMapping("/search")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> searchDocumentsByTitle(@RequestParam String title) {
+    public ResponseEntity<List<DocumentResponse>> searchDocumentsByTitle(@RequestParam String title) {
         log.info("Searching documents by title: {}", title);
 
-        List<DocumentResponseDTO> documents = documentService.searchDocumentsByTitle(title);
-        return ResponseEntity.ok(documents);
-    }
-
-    @GetMapping("/date-range")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByDateRange(
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
-        log.info("Getting documents by date range: {} to {}", startDate, endDate);
-
-        List<DocumentResponseDTO> documents = documentService.getDocumentsByDateRange(startDate, endDate);
-        return ResponseEntity.ok(documents);
-    }
-
-    @GetMapping("/owner/{ownerId}/date-range")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<List<DocumentResponseDTO>> getDocumentsByOwnerAndDateRange(
-            @PathVariable Long ownerId,
-            @RequestParam LocalDate startDate,
-            @RequestParam LocalDate endDate) {
-        log.info("Getting documents by owner {} and date range: {} to {}", ownerId, startDate, endDate);
-
-        List<DocumentResponseDTO> documents = documentService.getDocumentsByOwnerAndDateRange(ownerId, startDate,
-                endDate);
+        List<DocumentResponse> documents = documentService.searchDocumentsByTitle(title);
         return ResponseEntity.ok(documents);
     }
 }

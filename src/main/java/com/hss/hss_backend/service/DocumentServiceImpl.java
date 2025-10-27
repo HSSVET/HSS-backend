@@ -29,22 +29,23 @@ public class DocumentServiceImpl implements DocumentService {
     private final DocumentRepository documentRepository;
     private final OwnerRepository ownerRepository;
     private final AnimalRepository animalRepository;
+    private final DocumentMapper documentMapper;
 
     @Override
     public DocumentResponse createDocument(DocumentCreateRequest request) {
         log.info("Creating document: {}", request.getTitle());
-        
+
         Owner owner = ownerRepository.findById(request.getOwnerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + request.getOwnerId()));
-        
+
         Animal animal = animalRepository.findById(request.getAnimalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Animal not found with ID: " + request.getAnimalId()));
-        
-        Document document = DocumentMapper.toEntity(request, owner, animal);
+
+        Document document = documentMapper.toEntity(request, owner, animal);
         Document savedDocument = documentRepository.save(document);
-        
+
         log.info("Successfully created document with ID: {}", savedDocument.getDocumentId());
-        return DocumentMapper.toResponse(savedDocument);
+        return documentMapper.toResponse(savedDocument);
     }
 
     @Override
@@ -53,12 +54,12 @@ public class DocumentServiceImpl implements DocumentService {
         log.info("Fetching document with ID: {}", id);
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
-        
+
         // Fetch owner and animal to avoid lazy loading issues
         document.getOwner().getFirstName();
         document.getAnimal().getName();
-        
-        return DocumentMapper.toResponse(document);
+
+        return documentMapper.toResponse(document);
     }
 
     @Override
@@ -66,56 +67,55 @@ public class DocumentServiceImpl implements DocumentService {
     public Page<DocumentResponse> getAllDocuments(Pageable pageable) {
         log.info("Fetching all documents with pagination");
         Page<Document> documents = documentRepository.findAll(pageable);
-        return documents.map(DocumentMapper::toResponse);
+        return documents.map(documentMapper::toResponse);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByOwner(Long ownerId) {
         log.info("Fetching documents for owner ID: {}", ownerId);
-        List<Document> documents = documentRepository.findByOwner_OwnerId(ownerId);
-        return DocumentMapper.toResponseList(documents);
+        List<Document> documents = documentRepository.findActiveByOwnerId(ownerId);
+        return documentMapper.toResponseList(documents);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> getDocumentsByAnimal(Long animalId) {
         log.info("Fetching documents for animal ID: {}", animalId);
-        List<Document> documents = documentRepository.findByAnimal_AnimalId(animalId);
-        return DocumentMapper.toResponseList(documents);
+        List<Document> documents = documentRepository.findActiveByAnimalId(animalId);
+        return documentMapper.toResponseList(documents);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<DocumentResponse> searchDocumentsByTitle(String title) {
         log.info("Searching documents by title: {}", title);
-        List<Document> documents = documentRepository.findByTitleContaining(title);
-        return DocumentMapper.toResponseList(documents);
+        List<Document> documents = documentRepository.searchByTitle(title);
+        return documentMapper.toResponseList(documents);
     }
 
     @Override
     public DocumentResponse updateDocument(Long id, DocumentUpdateRequest request) {
         log.info("Updating document with ID: {}", id);
-        
+
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
-        
-        DocumentMapper.updateEntity(document, request);
+
+        documentMapper.updateEntity(document, request);
         Document savedDocument = documentRepository.save(document);
-        
+
         log.info("Successfully updated document with ID: {}", savedDocument.getDocumentId());
-        return DocumentMapper.toResponse(savedDocument);
+        return documentMapper.toResponse(savedDocument);
     }
 
     @Override
     public void deleteDocument(Long id) {
         log.info("Deleting document with ID: {}", id);
-        
+
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
-        
+
         documentRepository.delete(document);
         log.info("Successfully deleted document with ID: {}", id);
     }
 }
-
