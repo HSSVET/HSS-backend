@@ -2,7 +2,8 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    url: jdbc:postgresql:///hss_dev?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=hss-cloud-473511:europe-west3:hss-sql
+    # Lokal Docker PostgreSQL için
+    url: jdbc:postgresql://localhost:5432/hss_dev
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
@@ -11,7 +12,7 @@ spring:
       connection-timeout: 30000
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -23,5 +24,16 @@ spring:
     enabled: true
   cloud:
     gcp:
+      enabled: false
       sql:
         enabled: false
+      storage:
+        enabled: true
+      firestore:
+        enabled: false
+      firestore-emulator:
+        enabled: false
+
+# Firebase Configuration (Lokal için devre dışı)
+firebase:
+  enabled: false

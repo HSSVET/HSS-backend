@@ -34,35 +34,38 @@ import java.util.List;
 public class SecurityConfig {
 
     // Test için sabit secret key - her restart'ta aynı key kullanılsın
-    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor("mySecretKeyForTestingPurposesOnly123456789012345678901234567890".getBytes());
+    private static final SecretKey SECRET_KEY = Keys
+            .hmacShaKeyFor("mySecretKeyForTestingPurposesOnly123456789012345678901234567890".getBytes());
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(AbstractHttpConfigurer::disable)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/public/**", "/actuator/health", "/actuator/info").permitAll()
-                // Swagger UI ve API dokümantasyonu için izin ver
-                .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
-                .requestMatchers("/api/animals/**").permitAll()
-                .requestMatchers("/api/appointments/**").permitAll()
-                .requestMatchers("/api/medical-history/**").hasAnyRole("ADMIN", "VETERINARIAN")
-                .requestMatchers("/api/lab-tests/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
-                .requestMatchers("/api/prescriptions/**").hasAnyRole("ADMIN", "VETERINARIAN")
-                .requestMatchers("/api/vaccinations/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
-                .requestMatchers("/api/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
-                .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "STAFF")
-                .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
-                .requestMatchers("/api/dashboard/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
-                .requestMatchers("/api/species/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
-                .requestMatchers("/api/staff/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
-                .anyRequest().authenticated()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt.decoder(jwtDecoder()).jwtAuthenticationConverter(jwtAuthenticationConverter()))
-            );
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("/api/public/**", "/actuator/health", "/actuator/info").permitAll()
+                        // Swagger UI ve API dokümantasyonu için izin ver
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                                "/swagger-resources/**", "/webjars/**")
+                        .permitAll()
+                        .requestMatchers("/api/animals/**").permitAll()
+                        .requestMatchers("/api/appointments/**").permitAll()
+                        .requestMatchers("/api/medical-history/**").hasAnyRole("ADMIN", "VETERINARIAN")
+                        .requestMatchers("/api/lab-tests/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
+                        .requestMatchers("/api/prescriptions/**").hasAnyRole("ADMIN", "VETERINARIAN")
+                        .requestMatchers("/api/vaccinations/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
+                        .requestMatchers("/api/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
+                        .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
+                        .requestMatchers("/api/dashboard/**")
+                        .hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
+                        .requestMatchers("/api/species/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
+                        .requestMatchers("/api/staff/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.decoder(jwtDecoder())
+                                .jwtAuthenticationConverter(jwtAuthenticationConverter())));
 
         return http.build();
     }
@@ -76,11 +79,11 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-        
+
         // Custom authorities converter kullanarak roles claim'ini işle
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
-            
+
             // roles claim'ini al
             Object rolesClaim = jwt.getClaim("roles");
             if (rolesClaim instanceof List) {
@@ -91,10 +94,10 @@ public class SecurityConfig {
                     }
                 }
             }
-            
+
             return authorities;
         });
-        
+
         return jwtAuthenticationConverter;
     }
 

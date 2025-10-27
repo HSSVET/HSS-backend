@@ -1,88 +1,66 @@
 package com.hss.hss_backend.mapper;
 
-import com.hss.hss_backend.dto.request.DocumentCreateRequest;
-import com.hss.hss_backend.dto.request.DocumentUpdateRequest;
-import com.hss.hss_backend.dto.response.DocumentResponse;
+
+import com.hss.hss_backend.dto.DocumentCreateDTO;
+import com.hss.hss_backend.dto.DocumentResponseDTO;
+import com.hss.hss_backend.dto.DocumentUpdateDTO;
 import com.hss.hss_backend.entity.Animal;
 import com.hss.hss_backend.entity.Document;
 import com.hss.hss_backend.entity.Owner;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.Named;
 
-import java.util.List;
-import java.util.stream.Collectors;
+@Mapper(componentModel = "spring")
+public interface DocumentMapper {
 
-public class DocumentMapper {
+    @Mapping(target = "documentId", ignore = true)
+    @Mapping(target = "fileUrl", ignore = true)
+    @Mapping(target = "fileName", ignore = true)
+    @Mapping(target = "fileSize", ignore = true)
+    @Mapping(target = "mimeType", ignore = true)
+    @Mapping(target = "date", expression = "java(java.time.LocalDate.now())")
+    @Mapping(target = "isArchived", constant = "false")
+    @Mapping(target = "owner", source = "ownerId", qualifiedByName = "ownerIdToOwner")
+    @Mapping(target = "animal", source = "animalId", qualifiedByName = "animalIdToAnimal")
+    Document toEntity(DocumentCreateDTO dto);
 
-    public static Document toEntity(DocumentCreateRequest request, Owner owner, Animal animal) {
-        return Document.builder()
-                .owner(owner)
-                .animal(animal)
-                .title(request.getTitle())
-                .content(request.getContent())
-                .documentType(request.getDocumentType() != null ? request.getDocumentType() : Document.DocumentType.GENERAL)
-                .fileUrl(request.getFileUrl())
-                .fileName(request.getFileName())
-                .fileSize(request.getFileSize())
-                .mimeType(request.getMimeType())
-                .date(request.getDate())
-                .isArchived(request.getIsArchived() != null ? request.getIsArchived() : false)
-                .build();
+    @Mapping(target = "ownerId", source = "owner.ownerId")
+    @Mapping(target = "ownerName", source = "owner.firstName")
+    @Mapping(target = "ownerEmail", source = "owner.email")
+    @Mapping(target = "animalId", source = "animal.animalId")
+    @Mapping(target = "animalName", source = "animal.name")
+    @Mapping(target = "animalSpecies", source = "animal.species.name")
+    DocumentResponseDTO toResponseDTO(Document entity);
+
+    @Mapping(target = "documentId", ignore = true)
+    @Mapping(target = "owner", ignore = true)
+    @Mapping(target = "animal", ignore = true)
+    @Mapping(target = "fileUrl", ignore = true)
+    @Mapping(target = "fileName", ignore = true)
+    @Mapping(target = "fileSize", ignore = true)
+    @Mapping(target = "mimeType", ignore = true)
+    @Mapping(target = "date", ignore = true)
+    void updateEntityFromDTO(DocumentUpdateDTO dto, @MappingTarget Document entity);
+
+    @Named("ownerIdToOwner")
+    default Owner ownerIdToOwner(Long ownerId) {
+        if (ownerId == null) {
+            return null;
+        }
+        Owner owner = new Owner();
+        owner.setOwnerId(ownerId);
+        return owner;
     }
 
-    public static void updateEntity(Document document, DocumentUpdateRequest request) {
-        if (request.getTitle() != null) {
-            document.setTitle(request.getTitle());
+    @Named("animalIdToAnimal")
+    default Animal animalIdToAnimal(Long animalId) {
+        if (animalId == null) {
+            return null;
         }
-        if (request.getContent() != null) {
-            document.setContent(request.getContent());
-        }
-        if (request.getDocumentType() != null) {
-            document.setDocumentType(request.getDocumentType());
-        }
-        if (request.getFileUrl() != null) {
-            document.setFileUrl(request.getFileUrl());
-        }
-        if (request.getFileName() != null) {
-            document.setFileName(request.getFileName());
-        }
-        if (request.getFileSize() != null) {
-            document.setFileSize(request.getFileSize());
-        }
-        if (request.getMimeType() != null) {
-            document.setMimeType(request.getMimeType());
-        }
-        if (request.getDate() != null) {
-            document.setDate(request.getDate());
-        }
-        if (request.getIsArchived() != null) {
-            document.setIsArchived(request.getIsArchived());
-        }
-    }
-
-    public static DocumentResponse toResponse(Document document) {
-        return DocumentResponse.builder()
-                .documentId(document.getDocumentId())
-                .ownerId(document.getOwner().getOwnerId())
-                .ownerName(document.getOwner().getFirstName() + " " + document.getOwner().getLastName())
-                .animalId(document.getAnimal().getAnimalId())
-                .animalName(document.getAnimal().getName())
-                .title(document.getTitle())
-                .content(document.getContent())
-                .documentType(document.getDocumentType())
-                .fileUrl(document.getFileUrl())
-                .fileName(document.getFileName())
-                .fileSize(document.getFileSize())
-                .mimeType(document.getMimeType())
-                .date(document.getDate())
-                .isArchived(document.getIsArchived())
-                .createdAt(document.getCreatedAt())
-                .updatedAt(document.getUpdatedAt())
-                .build();
-    }
-
-    public static List<DocumentResponse> toResponseList(List<Document> documents) {
-        return documents.stream()
-                .map(DocumentMapper::toResponse)
-                .collect(Collectors.toList());
+        Animal animal = new Animal();
+        animal.setAnimalId(animalId);
+        return animal;
     }
 }
-
