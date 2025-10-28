@@ -14,7 +14,6 @@ steps:
       - '-f'
       - 'Dockerfile'
       - '.'
-    dir: 'hss-backend'
 
   # 2) Push to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
@@ -23,7 +22,6 @@ steps:
       - 'push'
       - '--all-tags'
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_SERVICE_NAME}/${_SERVICE_NAME}'
-    dir: 'hss-backend'
 
   # 3) Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
