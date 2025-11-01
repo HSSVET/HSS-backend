@@ -49,7 +49,6 @@ public class BreedController {
     }
 
     @GetMapping("/species/{speciesId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<List<BreedResponse>> getBreedsBySpeciesId(@PathVariable Long speciesId) {
         log.info("Fetching breeds for species ID: {}", speciesId);
         List<BreedResponse> response = breedService.getBreedsBySpeciesId(speciesId);

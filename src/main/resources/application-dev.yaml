@@ -2,8 +2,8 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    # Lokal Docker PostgreSQL için
-    url: jdbc:postgresql://localhost:5432/hss_dev
+    # Cloud SQL PostgreSQL için
+    url: jdbc:postgresql:///hss_dev?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${GCP_SQL_INSTANCE_CONNECTION_NAME:hss-cloud-473511:europe-west3:hss-sql}
     username: ${DB_USER}
     password: ${DB_PASS}
     driver-class-name: org.postgresql.Driver
@@ -24,7 +24,7 @@ spring:
     enabled: true
   cloud:
     gcp:
-      enabled: false
+      enabled: true
       sql:
         enabled: false
       storage:

@@ -41,7 +41,6 @@ public class OwnerController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<Page<OwnerResponse>> getAllOwners(Pageable pageable) {
         log.info("Fetching all owners with pagination");
         Page<OwnerResponse> response = ownerService.getAllOwners(pageable);

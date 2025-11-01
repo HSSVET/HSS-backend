@@ -60,7 +60,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
+                        // Species ve Owners listesi için GET isteklerine izin ver (hayvan ekleme formu için gerekli)
+                        .requestMatchers("/api/species/all").permitAll()
+                        .requestMatchers("/api/breeds/species/**").permitAll()
+                        .requestMatchers("/api/owners").permitAll() // GET /api/owners
                         .requestMatchers("/api/species/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
+                        .requestMatchers("/api/owners/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
                         .requestMatchers("/api/staff/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2
