@@ -50,8 +50,8 @@ spring:
 
 # Firebase Configuration
 firebase:
-  project-id: ${FIREBASE_PROJECT_ID:hss-project-id}
-  service-account-key: ${FIREBASE_SERVICE_ACCOUNT_KEY:}
+  project-id: hss-cloud-473511
+  service-account-key: C:\Users\irsad\keys\hss-backend.json
 
 # Server Configuration
 server:
