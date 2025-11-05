@@ -49,6 +49,8 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/swagger-resources/**", "/webjars/**")
                         .permitAll()
+                        // Public API endpoints (login, registration, etc.)
+                        .requestMatchers("/api/public/**").permitAll()
                         // API endpoints require authentication (enforced by @PreAuthorize)
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll());

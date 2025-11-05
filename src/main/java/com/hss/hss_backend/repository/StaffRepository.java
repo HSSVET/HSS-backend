@@ -64,6 +64,13 @@ public interface StaffRepository extends JpaRepository<Staff, Long> {
     @Query("SELECT s.position, COUNT(s) FROM Staff s WHERE s.active = true GROUP BY s.position")
     List<Object[]> getStaffCountByPosition();
     
+    // Find active staff by role
+    @Query("SELECT DISTINCT s FROM Staff s " +
+           "JOIN s.staffRoles sr " +
+           "JOIN sr.role r " +
+           "WHERE s.terminationDate IS NULL AND s.active = true AND r.name = :roleName")
+    List<Staff> findActiveStaffByRole(@Param("roleName") String roleName);
+    
     // Pagination support
     Page<Staff> findByActive(Boolean active, Pageable pageable);
     

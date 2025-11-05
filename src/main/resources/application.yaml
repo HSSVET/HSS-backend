@@ -51,11 +51,11 @@ spring:
 # Firebase Configuration
 firebase:
   project-id: hss-cloud-473511
-  service-account-key: C:\Users\irsad\keys\hss-backend.json
+  service-account-key: Users/enesbesiktas/Downloads/hss-backend.json
 
 # Server Configuration
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8090}
   servlet:
     context-path: /
 
@@ -69,7 +69,7 @@ management:
     health:
       show-details: always
   server:
-    port: ${PORT:8080}
+    port: ${PORT:8090}
   metrics:
     export:
       prometheus:

@@ -46,6 +46,7 @@ build/
 # Allow example files (for documentation)
 !.env.example
 !.env*.example
+!.env
 **/*credentials*.json
 **/service-account*.json
 **/*key*.json

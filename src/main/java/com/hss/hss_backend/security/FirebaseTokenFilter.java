@@ -3,6 +3,9 @@ package com.hss.hss_backend.security;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.FirebaseToken;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -28,6 +32,8 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
 
     private static final String AUTHORIZATION_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    // SecurityConfig ile aynı secret key - her restart'ta aynı key kullanılsın
+    private static final SecretKey SECRET_KEY = Keys.hmacShaKeyFor("mySecretKeyForTestingPurposesOnly123456789012345678901234567890".getBytes());
 
     private final FirebaseAuth firebaseAuth;
 
@@ -46,9 +52,9 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
         }
 
         try {
-            // Verify ID token
+            // First, try to verify as Firebase token
             FirebaseToken decodedToken = firebaseAuth.verifyIdToken(token, true);
-            log.debug("Token verified successfully for user: {}", decodedToken.getUid());
+            log.debug("Token verified successfully as Firebase token for user: {}", decodedToken.getUid());
 
             // Extract role from custom claims
             Map<String, Object> claims = decodedToken.getClaims();
@@ -74,16 +80,52 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
                     decodedToken.getUid(), role);
 
         } catch (FirebaseAuthException e) {
-            log.warn("Failed to verify Firebase token: {}", e.getMessage());
-            SecurityContextHolder.clearContext();
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Invalid or expired token\"}");
-            return;
+            log.debug("Token is not a valid Firebase token, trying JWT token: {}", e.getMessage());
+            
+            // If Firebase verification fails, try JWT token
+            try {
+                Claims jwtClaims = Jwts.parser()
+                        .verifyWith(SECRET_KEY)
+                        .build()
+                        .parseSignedClaims(token)
+                        .getPayload();
+                
+                String username = jwtClaims.getSubject();
+                @SuppressWarnings("unchecked")
+                List<String> roles = (List<String>) jwtClaims.get("roles");
+                
+                log.debug("Token verified successfully as JWT token for user: {}", username);
+                
+                // Create authorities from JWT roles
+                List<SimpleGrantedAuthority> authorities = Collections.emptyList();
+                if (roles != null && !roles.isEmpty()) {
+                    authorities = roles.stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                            .toList();
+                }
+                
+                // Create authentication object
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        username,
+                        null,
+                        authorities);
+                
+                // Set authentication in security context
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                log.debug("Authentication set in security context for user: {} with roles: {}",
+                        username, roles);
+                
+            } catch (Exception jwtException) {
+                log.warn("Token is neither a valid Firebase token nor a valid JWT token: {}", jwtException.getMessage());
+                SecurityContextHolder.clearContext();
+                // Don't return error here - let the request continue, Spring Security will handle authentication
+                // If the endpoint requires authentication, it will return 401
+                return;
+            }
         } catch (Exception e) {
             log.error("Unexpected error during token verification", e);
             SecurityContextHolder.clearContext();
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            // Don't return error here - let the request continue
             return;
         }
 
