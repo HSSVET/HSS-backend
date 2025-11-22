@@ -33,8 +33,8 @@ build/
 .vscode/
 
 ### Environment Variables - NEVER commit these! ###
-.env
 .env.local
+.env
 .env.production
 .env.development
 .env.test
@@ -46,7 +46,6 @@ build/
 # Allow example files (for documentation)
 !.env.example
 !.env*.example
-!.env
 **/*credentials*.json
 **/service-account*.json
 **/*key*.json

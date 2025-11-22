@@ -51,7 +51,7 @@ spring:
 # Firebase Configuration
 firebase:
   project-id: hss-cloud-473511
-  service-account-key: Users/enesbesiktas/Downloads/hss-backend.json
+  service-account-key: /hss-backend.json
 
 # Server Configuration
 server:

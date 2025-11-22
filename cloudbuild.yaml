@@ -175,24 +175,34 @@ steps:
 
         if [ "${_ENVIRONMENT}" = "prod" ]; then
           MY_SPRING_PROFILE="prod"
-          MY_SERVICE_NAME="hss-backend"
+          MY_SERVICE_NAME="${_OVERRIDE_SERVICE_NAME:-hss-backend}"
           MY_MIN_INSTANCES="1"
           MY_MAX_INSTANCES="10"
           MY_MEMORY="1Gi"
           MY_CPU="2"
           MY_TIMEOUT="600"
           MY_CONCURRENCY="100"
-          MY_DB="hss_prod"
+          MY_DB="${_OVERRIDE_DB_NAME:-hss_prod}"
+        elif [ "${_ENVIRONMENT}" = "demo" ]; then
+          MY_SPRING_PROFILE="prod"
+          MY_SERVICE_NAME="${_OVERRIDE_SERVICE_NAME:-hss-backend-demo}"
+          MY_MIN_INSTANCES="0"
+          MY_MAX_INSTANCES="2"
+          MY_MEMORY="512Mi"
+          MY_CPU="1"
+          MY_TIMEOUT="300"
+          MY_CONCURRENCY="80"
+          MY_DB="${_OVERRIDE_DB_NAME:-hss_demo}"
         else
           MY_SPRING_PROFILE="dev"
-          MY_SERVICE_NAME="hss-backend-dev"
+          MY_SERVICE_NAME="${_OVERRIDE_SERVICE_NAME:-hss-backend-dev}"
           MY_MIN_INSTANCES="0"
           MY_MAX_INSTANCES="3"
           MY_MEMORY="512Mi"
           MY_CPU="1"
           MY_TIMEOUT="300"
           MY_CONCURRENCY="80"
-          MY_DB="hss_dev"
+          MY_DB="${_OVERRIDE_DB_NAME:-hss_dev}"
         fi
 
         gcloud run deploy "$${MY_SERVICE_NAME}" \
