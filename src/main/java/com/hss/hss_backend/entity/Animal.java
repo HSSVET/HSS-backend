@@ -103,6 +103,12 @@ public class Animal extends BaseEntity {
     @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Document> documents;
 
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Surgery> surgeries;
+
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Hospitalization> hospitalizations;
+
     public enum Gender {
         MALE, FEMALE, UNKNOWN
     }
