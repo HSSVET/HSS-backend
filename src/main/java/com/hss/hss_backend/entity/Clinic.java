@@ -41,6 +41,9 @@ public class Clinic extends BaseEntity {
   @Column(name = "license_key", length = 50, unique = true)
   private String licenseKey; // Semantic Key: HSS-2025-GOLD-XXXX
 
+  @Column(name = "slug", unique = true)
+  private String slug;
+
   @Column(name = "license_type")
   private String licenseType; // GOLD, PLATINUM, STARTER
 

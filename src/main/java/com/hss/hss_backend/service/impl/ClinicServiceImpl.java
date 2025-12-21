@@ -37,6 +37,9 @@ public class ClinicServiceImpl implements ClinicService {
 
     Clinic clinic = clinicMapper.toEntity(request);
 
+    // Generate unique slug
+    clinic.setSlug(generateUniqueSlug(request.getName()));
+
     // Generate License
     String type = request.getLicenseType() != null ? request.getLicenseType() : "STRT";
     clinic.setLicenseType(type);
@@ -117,5 +120,24 @@ public class ClinicServiceImpl implements ClinicService {
   public List<ClinicResponse> searchClinics(String name) {
     // Placeholder
     return List.of();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public ClinicResponse getClinicBySlug(String slug) {
+    Clinic clinic = clinicRepository.findBySlug(slug)
+        .orElseThrow(() -> new ResourceNotFoundException("Clinic with slug " + slug + " not found"));
+    return clinicMapper.toResponse(clinic);
+  }
+
+  private String generateUniqueSlug(String name) {
+    String baseSlug = com.hss.hss_backend.util.SlugUtils.makeSlug(name);
+    String slug = baseSlug;
+    int counter = 1;
+    while (clinicRepository.existsBySlug(slug)) {
+      slug = baseSlug + "-" + counter;
+      counter++;
+    }
+    return slug;
   }
 }

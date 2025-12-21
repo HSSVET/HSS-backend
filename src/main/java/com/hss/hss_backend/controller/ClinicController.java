@@ -42,6 +42,12 @@ public class ClinicController {
     return ResponseEntity.ok(clinicService.getClinicById(id));
   }
 
+  @GetMapping("/slug/{slug}")
+  @PreAuthorize("isAuthenticated()")
+  public ResponseEntity<ClinicResponse> getClinicBySlug(@PathVariable String slug) {
+    return ResponseEntity.ok(clinicService.getClinicBySlug(slug));
+  }
+
   @PutMapping("/{id}")
   @PreAuthorize("hasRole('SUPER_ADMIN')")
   public ResponseEntity<ClinicResponse> updateClinic(@PathVariable Long id,

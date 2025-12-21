@@ -19,6 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "owner_id IN (select o.owner_id from owner o where o.clinic_id = :clinicId)")
 public class Animal extends BaseEntity {
 
     @Id

@@ -20,5 +20,7 @@ public interface ClinicService {
 
   void deleteClinic(Long id);
 
+  ClinicResponse getClinicBySlug(String slug);
+
   List<ClinicResponse> searchClinics(String name);
 }

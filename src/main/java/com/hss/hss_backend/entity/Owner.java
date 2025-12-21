@@ -17,6 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Owner extends BaseEntity {
 
     @Id

@@ -49,8 +49,11 @@ public class AuthSyncController {
       claims.put("staff_id", user.getStaff().getStaffId());
       if (user.getStaff().getClinic() != null) {
         Long clinicId = user.getStaff().getClinic().getClinicId();
+        String clinicSlug = user.getStaff().getClinic().getSlug();
         response.put("clinicId", clinicId);
+        response.put("clinicSlug", clinicSlug);
         claims.put("clinic_id", clinicId);
+        claims.put("clinic_slug", clinicSlug);
       }
       // Add roles
       // Add roles
@@ -64,8 +67,11 @@ public class AuthSyncController {
       claims.put("owner_id", user.getOwner().getOwnerId());
       if (user.getOwner().getClinic() != null) {
         Long clinicId = user.getOwner().getClinic().getClinicId();
+        String clinicSlug = user.getOwner().getClinic().getSlug();
         response.put("clinicId", clinicId);
+        response.put("clinicSlug", clinicSlug);
         claims.put("clinic_id", clinicId);
+        claims.put("clinic_slug", clinicSlug);
       }
     }
 

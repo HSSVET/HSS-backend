@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 @Data
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
+@org.hibernate.annotations.FilterDef(name = "clinicFilter", parameters = @org.hibernate.annotations.ParamDef(name = "clinicId", type = Long.class))
 public abstract class BaseEntity {
 
     @CreatedDate
