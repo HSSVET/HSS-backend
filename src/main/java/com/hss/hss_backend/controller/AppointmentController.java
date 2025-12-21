@@ -28,7 +28,7 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<AppointmentResponse> getAppointmentById(@PathVariable Long id) {
         log.info("Fetching appointment with ID: {}", id);
         AppointmentResponse response = appointmentService.getAppointmentById(id);
@@ -44,7 +44,7 @@ public class AppointmentController {
     }
 
     @GetMapping("/animal/{animalId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByAnimalId(@PathVariable Long animalId) {
         log.info("Fetching appointments for animal ID: {}", animalId);
         List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalId(animalId);
@@ -53,7 +53,8 @@ public class AppointmentController {
 
     @GetMapping("/veterinarian/{veterinarianId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
-    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByVeterinarianId(@PathVariable Long veterinarianId) {
+    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByVeterinarianId(
+            @PathVariable Long veterinarianId) {
         log.info("Fetching appointments for veterinarian ID: {}", veterinarianId);
         List<AppointmentResponse> response = appointmentService.getAppointmentsByVeterinarianId(veterinarianId);
         return ResponseEntity.ok(response);
@@ -70,13 +71,14 @@ public class AppointmentController {
     }
 
     @GetMapping("/animal/{animalId}/date-range")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByAnimalAndDateRange(
             @PathVariable Long animalId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
         log.info("Fetching appointments for animal {} between {} and {}", animalId, startDateTime, endDateTime);
-        List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalAndDateRange(animalId, startDateTime, endDateTime);
+        List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalAndDateRange(animalId,
+                startDateTime, endDateTime);
         return ResponseEntity.ok(response);
     }
 
@@ -116,7 +118,7 @@ public class AppointmentController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<AppointmentResponse> createAppointment(@Valid @RequestBody AppointmentCreateRequest request) {
         log.info("Creating appointment for animal ID: {} at {}", request.getAnimalId(), request.getDateTime());
         AppointmentResponse response = appointmentService.createAppointment(request);
@@ -126,7 +128,7 @@ public class AppointmentController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @RequestParam Appointment.Status status) {
         log.info("Updating appointment {} status to {}", id, status);
         AppointmentResponse response = appointmentService.updateAppointmentStatus(id, status);

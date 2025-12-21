@@ -11,6 +11,8 @@ import com.hss.hss_backend.mapper.DocumentMapper;
 import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.DocumentRepository;
 import com.hss.hss_backend.repository.OwnerRepository;
+import com.hss.hss_backend.security.ClinicContext;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -42,10 +44,32 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Animal not found with ID: " + request.getAnimalId()));
 
         Document document = documentMapper.toEntity(request, owner, animal);
+
+        // Ensure owner belongs to current clinic if clinic context is active
+        validateOwnerClinicAccess(owner);
+
         Document savedDocument = documentRepository.save(document);
 
         log.info("Successfully created document with ID: {}", savedDocument.getDocumentId());
         return documentMapper.toResponse(savedDocument);
+    }
+
+    private void validateOwnerClinicAccess(Owner owner) {
+        Long currentClinicId = ClinicContext.getClinicId();
+        if (currentClinicId != null && owner.getClinic() != null) {
+            Long ownerClinicId = owner.getClinic().getClinicId();
+            if (!currentClinicId.equals(ownerClinicId)) {
+                log.error("Access denied. Clinic ID {} cannot create/access document for owner {} in clinic {}",
+                        currentClinicId, owner.getOwnerId(), ownerClinicId);
+                throw new AccessDeniedException("You do not have permission to access this resource.");
+            }
+        }
+    }
+
+    private void validateDocumentAccess(Document document) {
+        if (document.getOwner() != null) {
+            validateOwnerClinicAccess(document.getOwner());
+        }
     }
 
     @Override
@@ -56,8 +80,14 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
 
         // Fetch owner and animal to avoid lazy loading issues
-        document.getOwner().getFirstName();
-        document.getAnimal().getName();
+        if (document.getOwner() != null) {
+            document.getOwner().getFirstName();
+        }
+        if (document.getAnimal() != null) {
+            document.getAnimal().getName();
+        }
+
+        validateDocumentAccess(document);
 
         return documentMapper.toResponse(document);
     }
@@ -66,7 +96,15 @@ public class DocumentServiceImpl implements DocumentService {
     @Transactional(readOnly = true)
     public Page<DocumentResponse> getAllDocuments(Pageable pageable) {
         log.info("Fetching all documents with pagination");
-        Page<Document> documents = documentRepository.findAll(pageable);
+        Long clinicId = ClinicContext.getClinicId();
+
+        Page<Document> documents;
+        if (clinicId != null) {
+            documents = documentRepository.findByClinicId(clinicId, pageable);
+        } else {
+            documents = documentRepository.findAll(pageable);
+        }
+
         return documents.map(documentMapper::toResponse);
     }
 
@@ -102,6 +140,9 @@ public class DocumentServiceImpl implements DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
 
         documentMapper.updateEntity(document, request);
+
+        validateDocumentAccess(document);
+
         Document savedDocument = documentRepository.save(document);
 
         log.info("Successfully updated document with ID: {}", savedDocument.getDocumentId());
@@ -115,7 +156,10 @@ public class DocumentServiceImpl implements DocumentService {
         Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with ID: " + id));
 
+        validateDocumentAccess(document);
+
         documentRepository.delete(document);
+
         log.info("Successfully deleted document with ID: {}", id);
     }
 }

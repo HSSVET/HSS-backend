@@ -22,6 +22,7 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+    out-of-order: true
   cloud:
     gcp:
       enabled: true
@@ -35,5 +36,6 @@ spring:
         enabled: false
 
 # Firebase Configuration (Lokal için devre dışı)
+# Firebase Configuration
 firebase:
-  enabled: false
+  enabled: true

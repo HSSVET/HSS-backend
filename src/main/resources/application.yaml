@@ -42,6 +42,7 @@ spring:
 
 # Firebase Configuration
 firebase:
+  enabled: true
   project-id: ${FIREBASE_PROJECT_ID:hss-project-id}
   service-account-key: ${FIREBASE_SERVICE_ACCOUNT_KEY:}
 

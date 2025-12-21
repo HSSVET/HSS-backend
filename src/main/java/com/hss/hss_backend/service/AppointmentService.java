@@ -9,6 +9,8 @@ import com.hss.hss_backend.exception.ResourceNotFoundException;
 import com.hss.hss_backend.mapper.AppointmentMapper;
 import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.AppointmentRepository;
+import com.hss.hss_backend.security.ClinicContext;
+import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,13 +35,24 @@ public class AppointmentService {
         log.info("Fetching appointment with ID: {}", id);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
+
+        validateClinicAccess(appointment);
+
         return AppointmentMapper.toResponse(appointment);
     }
 
     @Transactional(readOnly = true)
     public Page<AppointmentResponse> getAllAppointments(Pageable pageable) {
         log.info("Fetching all appointments with pagination");
-        Page<Appointment> appointments = appointmentRepository.findAll(pageable);
+        Long clinicId = ClinicContext.getClinicId();
+
+        Page<Appointment> appointments;
+        if (clinicId != null) {
+            appointments = appointmentRepository.findByClinicId(clinicId, pageable);
+        } else {
+            appointments = appointmentRepository.findAll(pageable);
+        }
+
         return appointments.map(AppointmentMapper::toResponse);
     }
 
@@ -58,16 +71,19 @@ public class AppointmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> getAppointmentsByDateRange(LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public List<AppointmentResponse> getAppointmentsByDateRange(LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
         log.info("Fetching appointments between {} and {}", startDateTime, endDateTime);
         List<Appointment> appointments = appointmentRepository.findByDateTimeBetween(startDateTime, endDateTime);
         return AppointmentMapper.toResponseList(appointments);
     }
 
     @Transactional(readOnly = true)
-    public List<AppointmentResponse> getAppointmentsByAnimalAndDateRange(Long animalId, LocalDateTime startDateTime, LocalDateTime endDateTime) {
+    public List<AppointmentResponse> getAppointmentsByAnimalAndDateRange(Long animalId, LocalDateTime startDateTime,
+            LocalDateTime endDateTime) {
         log.info("Fetching appointments for animal {} between {} and {}", animalId, startDateTime, endDateTime);
-        List<Appointment> appointments = appointmentRepository.findByAnimalAnimalIdAndDateTimeBetween(animalId, startDateTime, endDateTime);
+        List<Appointment> appointments = appointmentRepository.findByAnimalAnimalIdAndDateTimeBetween(animalId,
+                startDateTime, endDateTime);
         return AppointmentMapper.toResponseList(appointments);
     }
 
@@ -75,10 +91,9 @@ public class AppointmentService {
     public List<AppointmentResponse> getUpcomingAppointments(LocalDateTime fromDateTime) {
         log.info("Fetching upcoming appointments from {}", fromDateTime);
         List<Appointment.Status> activeStatuses = List.of(
-                Appointment.Status.SCHEDULED, 
-                Appointment.Status.CONFIRMED, 
-                Appointment.Status.IN_PROGRESS
-        );
+                Appointment.Status.SCHEDULED,
+                Appointment.Status.CONFIRMED,
+                Appointment.Status.IN_PROGRESS);
         List<Appointment> appointments = appointmentRepository.findUpcomingAppointments(fromDateTime, activeStatuses);
         return AppointmentMapper.toResponseList(appointments);
     }
@@ -101,7 +116,7 @@ public class AppointmentService {
 
     public AppointmentResponse createAppointment(AppointmentCreateRequest request) {
         log.info("Creating appointment for animal ID: {} at {}", request.getAnimalId(), request.getDateTime());
-        
+
         Animal animal = animalRepository.findById(request.getAnimalId())
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", request.getAnimalId()));
 
@@ -119,9 +134,10 @@ public class AppointmentService {
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
-    public AppointmentResponse createAppointment(Long animalId, LocalDateTime dateTime, String subject, Long veterinarianId, String notes) {
+    public AppointmentResponse createAppointment(Long animalId, LocalDateTime dateTime, String subject,
+            Long veterinarianId, String notes) {
         log.info("Creating appointment for animal ID: {} at {}", animalId, dateTime);
-        
+
         Animal animal = animalRepository.findById(animalId)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", animalId));
 
@@ -139,14 +155,29 @@ public class AppointmentService {
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
+    private void validateClinicAccess(Appointment appointment) {
+        Long currentClinicId = ClinicContext.getClinicId();
+        if (currentClinicId != null && appointment.getAnimal() != null && appointment.getAnimal().getOwner() != null
+                && appointment.getAnimal().getOwner().getClinic() != null) {
+            Long recordClinicId = appointment.getAnimal().getOwner().getClinic().getClinicId();
+            if (!currentClinicId.equals(recordClinicId)) {
+                log.error("Access denied. Clinic ID {} cannot access appointment {} belonging to clinic {}",
+                        currentClinicId, appointment.getAppointmentId(), recordClinicId);
+                throw new AccessDeniedException("You do not have permission to access this appointment.");
+            }
+        }
+    }
+
     public AppointmentResponse updateAppointmentStatus(Long id, Appointment.Status status) {
         log.info("Updating appointment {} status to {}", id, status);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
-        
+
+        validateClinicAccess(appointment);
+
         appointment.setStatus(status);
         Appointment updatedAppointment = appointmentRepository.save(appointment);
-        
+
         log.info("Appointment status updated successfully");
         return AppointmentMapper.toResponse(updatedAppointment);
     }
@@ -155,27 +186,32 @@ public class AppointmentService {
         log.info("Updating appointment with ID: {}", id);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
-        
+
+        validateClinicAccess(appointment);
+
         appointment.setDateTime(request.getDateTime());
         appointment.setSubject(request.getSubject());
         appointment.setVeterinarianId(request.getVeterinarianId());
         appointment.setNotes(request.getNotes());
-        
+
         Appointment updatedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment updated successfully with ID: {}", updatedAppointment.getAppointmentId());
         return AppointmentMapper.toResponse(updatedAppointment);
     }
 
-    public AppointmentResponse updateAppointment(Long id, LocalDateTime dateTime, String subject, Long veterinarianId, String notes) {
+    public AppointmentResponse updateAppointment(Long id, LocalDateTime dateTime, String subject, Long veterinarianId,
+            String notes) {
         log.info("Updating appointment with ID: {}", id);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
-        
+
+        validateClinicAccess(appointment);
+
         appointment.setDateTime(dateTime);
         appointment.setSubject(subject);
         appointment.setVeterinarianId(veterinarianId);
         appointment.setNotes(notes);
-        
+
         Appointment updatedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment updated successfully with ID: {}", updatedAppointment.getAppointmentId());
         return AppointmentMapper.toResponse(updatedAppointment);
@@ -185,6 +221,9 @@ public class AppointmentService {
         log.info("Deleting appointment with ID: {}", id);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
+
+        validateClinicAccess(appointment);
+
         appointmentRepository.delete(appointment);
         log.info("Appointment deleted successfully with ID: {}", id);
     }
