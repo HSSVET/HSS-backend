@@ -48,9 +48,5 @@ USER appuser
 # Expose port (Cloud Run will set PORT environment variable)
 EXPOSE 8080
 
-# Health check (use PORT environment variable) - Cloud Run için optimize edildi
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
-
 # Run the application with proper JVM settings for Cloud Run
 ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
