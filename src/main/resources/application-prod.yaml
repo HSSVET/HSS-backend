@@ -37,13 +37,15 @@ spring:
           provider_disables_autocommit: true
   
   # Flyway Configuration for Production
+  spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: true
-    fail-on-missing-locations: false
     out-of-order: true
+    ignore-migration-patterns: "*:checksum"
+
   
   # Security Configuration for Production
   security:
