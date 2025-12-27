@@ -108,4 +108,23 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+    @Bean
+    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
+        return token -> {
+            java.util.Map<String, Object> claims = new java.util.HashMap<>();
+            claims.put("sub", "test-user");
+//            claims.put("iss", "https://securetoken.google.com/hss-cloud-473511"); // Optional for now
+            claims.put("roles", java.util.List.of("ADMIN", "VETERINARIAN", "STAFF")); // Grant full access
+            
+            // Return a dummy validated JWT
+            // Note: In production, this MUST be removed
+            return new org.springframework.security.oauth2.jwt.Jwt(
+                    token, 
+                    java.time.Instant.now(), 
+                    java.time.Instant.now().plusSeconds(3600), 
+                    java.util.Map.of("alg", "none"), 
+                    claims
+            );
+        };
+    }
 }
