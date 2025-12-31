@@ -63,10 +63,23 @@ public class AppointmentController {
     @GetMapping("/date-range")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByDateRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
-        log.info("Fetching appointments between {} and {}", startDateTime, endDateTime);
-        List<AppointmentResponse> response = appointmentService.getAppointmentsByDateRange(startDateTime, endDateTime);
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
+            @RequestParam(name = "startDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTimeAlias,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime,
+            @RequestParam(name = "endDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTimeAlias) {
+
+        LocalDateTime finalStart = startDateTime != null ? startDateTime : startDateTimeAlias;
+        LocalDateTime finalEnd = endDateTime != null ? endDateTime : endDateTimeAlias;
+
+        if (finalStart == null || finalEnd == null) {
+            // fallback logic or throw exception, but let's assume one pair is present.
+            // Actually, cleaner is just to rename the params to what frontend sends, or
+            // support both via alias.
+            throw new IllegalArgumentException("StartDate and EndDate are required");
+        }
+
+        log.info("Fetching appointments between {} and {}", finalStart, finalEnd);
+        List<AppointmentResponse> response = appointmentService.getAppointmentsByDateRange(finalStart, finalEnd);
         return ResponseEntity.ok(response);
     }
 

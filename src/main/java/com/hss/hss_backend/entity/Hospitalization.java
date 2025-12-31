@@ -18,12 +18,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Hospitalization {
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
+public class Hospitalization extends BaseEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(name = "hospitalization_id")
   private Long hospitalizationId;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "clinic_id", nullable = false)
+  private Clinic clinic;
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "animal_id", nullable = false)

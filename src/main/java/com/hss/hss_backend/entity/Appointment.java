@@ -17,13 +17,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "animal_id IN (select a.animal_id from animal a inner join owner o on a.owner_id = o.owner_id where o.clinic_id = :clinicId)")
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Appointment extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "appointment_id")
     private Long appointmentId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    private Clinic clinic;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "animal_id", nullable = false)

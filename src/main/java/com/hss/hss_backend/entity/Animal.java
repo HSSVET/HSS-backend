@@ -19,13 +19,17 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
-@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "owner_id IN (select o.owner_id from owner o where o.clinic_id = :clinicId)")
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Animal extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "animal_id")
     private Long animalId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    private Clinic clinic;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)

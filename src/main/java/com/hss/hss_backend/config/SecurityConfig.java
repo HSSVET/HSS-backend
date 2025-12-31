@@ -51,6 +51,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/vaccinations/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                         .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
@@ -98,6 +99,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // Allow all origin patterns to support:
+        // - Admin portal: admin.hssvet.com (or admin.localhost for local dev)
+        // - Customer portal: hssvet.com (or localhost for local dev)
+        // - Clinic-specific paths: hssvet.com/klinikadi/*
+        // TODO: For production, replace with explicit allowed origins for better
+        // security
         configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
