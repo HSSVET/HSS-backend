@@ -15,6 +15,7 @@ import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.BreedRepository;
 import com.hss.hss_backend.repository.OwnerRepository;
 import com.hss.hss_backend.repository.SpeciesRepository;
+import com.hss.hss_backend.service.VaccinationScheduleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -34,6 +35,7 @@ public class AnimalService {
     private final OwnerRepository ownerRepository;
     private final SpeciesRepository speciesRepository;
     private final BreedRepository breedRepository;
+    private final VaccinationScheduleService vaccinationScheduleService;
 
     public AnimalResponse createAnimal(AnimalCreateRequest request) {
         log.info("Creating animal with name: {}", request.getName());
@@ -65,6 +67,16 @@ public class AnimalService {
         Animal savedAnimal = animalRepository.save(animal);
 
         log.info("Animal created successfully with ID: {}", savedAnimal.getAnimalId());
+        
+        // Otomatik aşı takvimi oluştur
+        try {
+            vaccinationScheduleService.generateScheduleForAnimal(savedAnimal.getAnimalId());
+            log.info("Vaccination schedule generated for animal ID: {}", savedAnimal.getAnimalId());
+        } catch (Exception e) {
+            log.error("Failed to generate vaccination schedule for animal ID: {}", savedAnimal.getAnimalId(), e);
+            // Aşı takvimi oluşturma hatası hayvan oluşturmayı engellemez
+        }
+        
         return AnimalMapper.toResponse(savedAnimal);
     }
 
