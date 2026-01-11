@@ -13,12 +13,27 @@ import java.util.stream.Collectors;
 public class OwnerMapper {
 
     public static Owner toEntity(OwnerCreateRequest request) {
+        Owner.OwnerType type = Owner.OwnerType.INDIVIDUAL;
+        if (request.getType() != null) {
+            try {
+                type = Owner.OwnerType.valueOf(request.getType());
+            } catch (IllegalArgumentException e) {
+                // Default to INDIVIDUAL or handle error
+            }
+        }
+
         return Owner.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .phone(request.getPhone())
                 .email(request.getEmail())
                 .address(request.getAddress())
+                .type(type)
+                .corporateName(request.getCorporateName())
+                .taxNo(request.getTaxNo())
+                .taxOffice(request.getTaxOffice())
+                .notes(request.getNotes())
+                .warnings(request.getWarnings())
                 .build();
     }
 
@@ -38,6 +53,28 @@ public class OwnerMapper {
         if (request.getAddress() != null) {
             owner.setAddress(request.getAddress());
         }
+        if (request.getType() != null) {
+            try {
+                owner.setType(Owner.OwnerType.valueOf(request.getType()));
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid type
+            }
+        }
+        if (request.getCorporateName() != null) {
+            owner.setCorporateName(request.getCorporateName());
+        }
+        if (request.getTaxNo() != null) {
+            owner.setTaxNo(request.getTaxNo());
+        }
+        if (request.getTaxOffice() != null) {
+            owner.setTaxOffice(request.getTaxOffice());
+        }
+        if (request.getNotes() != null) {
+            owner.setNotes(request.getNotes());
+        }
+        if (request.getWarnings() != null) {
+            owner.setWarnings(request.getWarnings());
+        }
     }
 
     public static OwnerResponse toResponse(Owner owner) {
@@ -48,6 +85,12 @@ public class OwnerMapper {
                 .phone(owner.getPhone())
                 .email(owner.getEmail())
                 .address(owner.getAddress())
+                .type(owner.getType() != null ? owner.getType().name() : null)
+                .corporateName(owner.getCorporateName())
+                .taxNo(owner.getTaxNo())
+                .taxOffice(owner.getTaxOffice())
+                .notes(owner.getNotes())
+                .warnings(owner.getWarnings())
                 .createdAt(owner.getCreatedAt())
                 .updatedAt(owner.getUpdatedAt())
                 .build();

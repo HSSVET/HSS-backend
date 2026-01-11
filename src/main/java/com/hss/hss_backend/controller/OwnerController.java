@@ -40,6 +40,14 @@ public class OwnerController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}/financial-summary")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse> getFinancialSummary(
+            @PathVariable Long id) {
+        log.info("Fetching financial summary for owner ID: {}", id);
+        return ResponseEntity.ok(ownerService.getFinancialSummary(id));
+    }
+
     @GetMapping
     public ResponseEntity<Page<OwnerResponse>> getAllOwners(Pageable pageable) {
         log.info("Fetching all owners with pagination");
@@ -65,7 +73,8 @@ public class OwnerController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
-    public ResponseEntity<OwnerResponse> updateOwner(@PathVariable Long id, @Valid @RequestBody OwnerUpdateRequest request) {
+    public ResponseEntity<OwnerResponse> updateOwner(@PathVariable Long id,
+            @Valid @RequestBody OwnerUpdateRequest request) {
         log.info("Updating owner with ID: {}", id);
         OwnerResponse response = ownerService.updateOwner(id, request);
         return ResponseEntity.ok(response);

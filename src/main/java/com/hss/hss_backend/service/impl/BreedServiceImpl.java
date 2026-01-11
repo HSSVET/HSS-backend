@@ -1,4 +1,6 @@
-package com.hss.hss_backend.service;
+package com.hss.hss_backend.service.impl;
+
+import com.hss.hss_backend.service.BreedService;
 
 import com.hss.hss_backend.dto.request.BreedCreateRequest;
 import com.hss.hss_backend.dto.request.BreedUpdateRequest;
@@ -31,19 +33,21 @@ public class BreedServiceImpl implements BreedService {
     @Override
     public BreedResponse createBreed(BreedCreateRequest request) {
         log.info("Creating breed: {} for species ID: {}", request.getName(), request.getSpeciesId());
-        
+
         // Check if species exists
         Species species = speciesRepository.findById(request.getSpeciesId())
-                .orElseThrow(() -> new ResourceNotFoundException("Species not found with ID: " + request.getSpeciesId()));
-        
+                .orElseThrow(
+                        () -> new ResourceNotFoundException("Species not found with ID: " + request.getSpeciesId()));
+
         // Check for duplicate breed name within the same species
         if (breedRepository.findByNameAndSpeciesSpeciesId(request.getName(), request.getSpeciesId()).isPresent()) {
-            throw new DuplicateResourceException("Breed with name '" + request.getName() + "' already exists for this species");
+            throw new DuplicateResourceException(
+                    "Breed with name '" + request.getName() + "' already exists for this species");
         }
-        
+
         Breed breed = BreedMapper.toEntity(request, species);
         Breed savedBreed = breedRepository.save(breed);
-        
+
         log.info("Successfully created breed with ID: {}", savedBreed.getBreedId());
         return BreedMapper.toResponse(savedBreed);
     }
@@ -84,27 +88,29 @@ public class BreedServiceImpl implements BreedService {
     @Override
     public BreedResponse updateBreed(Long id, BreedUpdateRequest request) {
         log.info("Updating breed with ID: {}", id);
-        
+
         Breed breed = breedRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Breed not found with ID: " + id));
-        
+
         // Check if species exists if it's being updated
         if (request.getSpeciesId() != null) {
             Species species = speciesRepository.findById(request.getSpeciesId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Species not found with ID: " + request.getSpeciesId()));
-            
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Species not found with ID: " + request.getSpeciesId()));
+
             // Check for duplicate breed name within the same species
             if (breedRepository.findByNameAndSpeciesSpeciesId(request.getName(), request.getSpeciesId()).isPresent()) {
-                throw new DuplicateResourceException("Breed with name '" + request.getName() + "' already exists for this species");
+                throw new DuplicateResourceException(
+                        "Breed with name '" + request.getName() + "' already exists for this species");
             }
-            
+
             // Update the breed's species
             breed.setSpecies(species);
         }
-        
+
         BreedMapper.updateEntity(breed, request);
         Breed savedBreed = breedRepository.save(breed);
-        
+
         log.info("Successfully updated breed with ID: {}", savedBreed.getBreedId());
         return BreedMapper.toResponse(savedBreed);
     }
@@ -112,15 +118,16 @@ public class BreedServiceImpl implements BreedService {
     @Override
     public void deleteBreed(Long id) {
         log.info("Deleting breed with ID: {}", id);
-        
+
         Breed breed = breedRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Breed not found with ID: " + id));
-        
+
         // Check if breed has associated animals
         if (!breed.getAnimals().isEmpty()) {
-            throw new IllegalStateException("Cannot delete breed with associated animals. Please remove all animals first.");
+            throw new IllegalStateException(
+                    "Cannot delete breed with associated animals. Please remove all animals first.");
         }
-        
+
         breedRepository.delete(breed);
         log.info("Successfully deleted breed with ID: {}", id);
     }

@@ -1,4 +1,6 @@
-package com.hss.hss_backend.service;
+package com.hss.hss_backend.service.impl;
+
+import com.hss.hss_backend.service.DocumentService;
 
 import com.hss.hss_backend.dto.request.DocumentCreateRequest;
 import com.hss.hss_backend.dto.request.DocumentUpdateRequest;

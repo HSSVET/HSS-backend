@@ -1,4 +1,6 @@
-package com.hss.hss_backend.service;
+package com.hss.hss_backend.service.impl;
+
+import com.hss.hss_backend.service.OwnerService;
 
 import com.hss.hss_backend.dto.request.OwnerCreateRequest;
 import com.hss.hss_backend.dto.request.OwnerUpdateRequest;
@@ -24,28 +26,30 @@ import java.util.List;
 public class OwnerServiceImpl implements OwnerService {
 
     private final OwnerRepository ownerRepository;
+    private final com.hss.hss_backend.repository.InvoiceRepository invoiceRepository;
+    private final com.hss.hss_backend.repository.PaymentRepository paymentRepository;
 
     @Override
     public OwnerResponse createOwner(OwnerCreateRequest request) {
         log.info("Creating owner: {} {}", request.getFirstName(), request.getLastName());
-        
+
         // Check for duplicate email
         if (request.getEmail() != null && !request.getEmail().isEmpty()) {
             if (ownerRepository.findByEmail(request.getEmail()).isPresent()) {
                 throw new DuplicateResourceException("Owner with email '" + request.getEmail() + "' already exists");
             }
         }
-        
+
         // Check for duplicate phone
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
             if (ownerRepository.findByPhone(request.getPhone()).isPresent()) {
                 throw new DuplicateResourceException("Owner with phone '" + request.getPhone() + "' already exists");
             }
         }
-        
+
         Owner owner = OwnerMapper.toEntity(request);
         Owner savedOwner = ownerRepository.save(owner);
-        
+
         log.info("Successfully created owner with ID: {}", savedOwner.getOwnerId());
         return OwnerMapper.toResponse(savedOwner);
     }
@@ -84,35 +88,64 @@ public class OwnerServiceImpl implements OwnerService {
     }
 
     @Override
+    public com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse getFinancialSummary(Long ownerId) {
+        log.info("Calculating financial summary for owner ID: {}", ownerId);
+
+        java.math.BigDecimal totalInvoiced = invoiceRepository.getTotalAmountByOwnerId(ownerId);
+        if (totalInvoiced == null)
+            totalInvoiced = java.math.BigDecimal.ZERO;
+
+        java.math.BigDecimal totalPaid = paymentRepository.sumAmountByOwner_OwnerId(ownerId);
+        if (totalPaid == null)
+            totalPaid = java.math.BigDecimal.ZERO;
+
+        java.math.BigDecimal balance = totalInvoiced.subtract(totalPaid);
+
+        java.math.BigDecimal overdueAmount = invoiceRepository.getOverdueAmountByOwnerId(ownerId);
+        if (overdueAmount == null)
+            overdueAmount = java.math.BigDecimal.ZERO;
+
+        return com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse.builder()
+                .ownerId(ownerId)
+                .totalInvoiced(totalInvoiced)
+                .totalPaid(totalPaid)
+                .balance(balance)
+                .overdueAmount(overdueAmount)
+                .build();
+    }
+
+    @Override
     public OwnerResponse updateOwner(Long id, OwnerUpdateRequest request) {
         log.info("Updating owner with ID: {}", id);
-        
+
         Owner owner = ownerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + id));
-        
+
         // Check for duplicate email if it's being updated
         if (request.getEmail() != null && !request.getEmail().isEmpty()) {
             ownerRepository.findByEmail(request.getEmail())
                     .ifPresent(existingOwner -> {
                         if (!existingOwner.getOwnerId().equals(id)) {
-                            throw new DuplicateResourceException("Owner with email '" + request.getEmail() + "' already exists");
+                            throw new DuplicateResourceException(
+                                    "Owner with email '" + request.getEmail() + "' already exists");
                         }
                     });
         }
-        
+
         // Check for duplicate phone if it's being updated
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
             ownerRepository.findByPhone(request.getPhone())
                     .ifPresent(existingOwner -> {
                         if (!existingOwner.getOwnerId().equals(id)) {
-                            throw new DuplicateResourceException("Owner with phone '" + request.getPhone() + "' already exists");
+                            throw new DuplicateResourceException(
+                                    "Owner with phone '" + request.getPhone() + "' already exists");
                         }
                     });
         }
-        
+
         OwnerMapper.updateEntity(owner, request);
         Owner savedOwner = ownerRepository.save(owner);
-        
+
         log.info("Successfully updated owner with ID: {}", savedOwner.getOwnerId());
         return OwnerMapper.toResponse(savedOwner);
     }
@@ -120,15 +153,16 @@ public class OwnerServiceImpl implements OwnerService {
     @Override
     public void deleteOwner(Long id) {
         log.info("Deleting owner with ID: {}", id);
-        
+
         Owner owner = ownerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + id));
-        
+
         // Check if owner has associated animals
         if (!owner.getAnimals().isEmpty()) {
-            throw new IllegalStateException("Cannot delete owner with associated animals. Please remove all animals first.");
+            throw new IllegalStateException(
+                    "Cannot delete owner with associated animals. Please remove all animals first.");
         }
-        
+
         ownerRepository.delete(owner);
         log.info("Successfully deleted owner with ID: {}", id);
     }
