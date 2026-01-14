@@ -16,9 +16,8 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = false)
-@org.hibernate.annotations.SQLDelete(sql = "UPDATE owner SET deleted = true WHERE owner_id=?")
-@org.hibernate.annotations.SQLRestriction("deleted = false")
+@org.hibernate.annotations.SQLDelete(sql = "UPDATE owner SET is_deleted = true WHERE owner_id = ?")
+@org.hibernate.annotations.SQLRestriction("is_deleted = false")
 @org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Owner extends BaseEntity {
 
@@ -56,8 +55,7 @@ public class Owner extends BaseEntity {
     @Builder.Default
     private OwnerType type = OwnerType.INDIVIDUAL;
 
-    @Column(name = "deleted", nullable = false)
-    @Builder.Default
+    @Column(name = "is_deleted", nullable = false)
     private boolean deleted = false;
 
     @Column(name = "corporate_name", length = 200)

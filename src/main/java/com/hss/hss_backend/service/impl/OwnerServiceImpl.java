@@ -9,7 +9,13 @@ import com.hss.hss_backend.entity.Owner;
 import com.hss.hss_backend.exception.DuplicateResourceException;
 import com.hss.hss_backend.exception.ResourceNotFoundException;
 import com.hss.hss_backend.mapper.OwnerMapper;
+import com.hss.hss_backend.repository.ClinicRepository;
+import com.hss.hss_backend.repository.InvoiceRepository;
 import com.hss.hss_backend.repository.OwnerRepository;
+import com.hss.hss_backend.repository.PaymentRepository;
+import com.hss.hss_backend.security.ClinicContext;
+import com.hss.hss_backend.entity.Clinic;
+import com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -18,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -26,21 +33,21 @@ import java.util.List;
 public class OwnerServiceImpl implements OwnerService {
 
     private final OwnerRepository ownerRepository;
-    private final com.hss.hss_backend.repository.InvoiceRepository invoiceRepository;
-    private final com.hss.hss_backend.repository.PaymentRepository paymentRepository;
-    private final com.hss.hss_backend.repository.ClinicRepository clinicRepository;
+    private final InvoiceRepository invoiceRepository;
+    private final PaymentRepository paymentRepository;
+    private final ClinicRepository clinicRepository;
 
     @Override
     public OwnerResponse createOwner(OwnerCreateRequest request) {
         log.info("Creating owner: {} {}", request.getFirstName(), request.getLastName());
 
         // Get current clinic from context
-        Long clinicId = com.hss.hss_backend.security.ClinicContext.getClinicId();
+        Long clinicId = ClinicContext.getClinicId();
         if (clinicId == null) {
             throw new IllegalStateException("Clinic context is missing. Cannot create owner.");
         }
 
-        com.hss.hss_backend.entity.Clinic clinic = clinicRepository.findById(clinicId)
+        Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with ID: " + clinicId));
 
         // Check for duplicate email
@@ -106,24 +113,24 @@ public class OwnerServiceImpl implements OwnerService {
     }
 
     @Override
-    public com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse getFinancialSummary(Long ownerId) {
+    public OwnerFinancialSummaryResponse getFinancialSummary(Long ownerId) {
         log.info("Calculating financial summary for owner ID: {}", ownerId);
 
-        java.math.BigDecimal totalInvoiced = invoiceRepository.getTotalAmountByOwnerId(ownerId);
+        BigDecimal totalInvoiced = invoiceRepository.getTotalAmountByOwnerId(ownerId);
         if (totalInvoiced == null)
-            totalInvoiced = java.math.BigDecimal.ZERO;
+            totalInvoiced = BigDecimal.ZERO;
 
-        java.math.BigDecimal totalPaid = paymentRepository.sumAmountByOwner_OwnerId(ownerId);
+        BigDecimal totalPaid = paymentRepository.sumAmountByOwner_OwnerId(ownerId);
         if (totalPaid == null)
-            totalPaid = java.math.BigDecimal.ZERO;
+            totalPaid = BigDecimal.ZERO;
 
-        java.math.BigDecimal balance = totalInvoiced.subtract(totalPaid);
+        BigDecimal balance = totalInvoiced.subtract(totalPaid);
 
-        java.math.BigDecimal overdueAmount = invoiceRepository.getOverdueAmountByOwnerId(ownerId);
+        BigDecimal overdueAmount = invoiceRepository.getOverdueAmountByOwnerId(ownerId);
         if (overdueAmount == null)
-            overdueAmount = java.math.BigDecimal.ZERO;
+            overdueAmount = BigDecimal.ZERO;
 
-        return com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse.builder()
+        return OwnerFinancialSummaryResponse.builder()
                 .ownerId(ownerId)
                 .totalInvoiced(totalInvoiced)
                 .totalPaid(totalPaid)
@@ -180,6 +187,6 @@ public class OwnerServiceImpl implements OwnerService {
         // We removed the manual check to allow deletion.
 
         ownerRepository.delete(owner);
-        log.info("Successfully deleted owner with ID: {}", id);
+        log.info("Successfully deleted owner with ID: {} (Soft Delete initiated)", id);
     }
 }
