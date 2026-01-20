@@ -2,7 +2,7 @@ package com.hss.hss_backend.controller;
 
 import com.hss.hss_backend.dto.StockProductDTO;
 import com.hss.hss_backend.entity.StockProduct;
-import com.hss.hss_backend.repository.StockProductRepository;
+import com.hss.hss_backend.service.StockProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StockProductController {
 
-  private final StockProductRepository stockProductRepository;
+  private final StockProductService stockProductService;
 
   private StockProductDTO mapToDTO(StockProduct product) {
     return StockProductDTO.builder()
@@ -33,29 +33,31 @@ public class StockProductController {
 
   @GetMapping
   public ResponseEntity<List<StockProductDTO>> getAllProducts() {
-    return ResponseEntity.ok(stockProductRepository.findByIsActive(true).stream()
+    return ResponseEntity.ok(stockProductService.getAllActiveProducts().stream()
         .map(this::mapToDTO)
         .collect(Collectors.toList()));
   }
 
   @GetMapping("/{id}")
   public ResponseEntity<StockProductDTO> getProductById(@PathVariable Long id) {
-    return stockProductRepository.findById(id)
-        .map(this::mapToDTO)
-        .map(ResponseEntity::ok)
-        .orElse(ResponseEntity.notFound().build());
+    try {
+      StockProduct product = stockProductService.getProductById(id);
+      return ResponseEntity.ok(mapToDTO(product));
+    } catch (Exception e) {
+      return ResponseEntity.notFound().build();
+    }
   }
 
   @GetMapping("/alerts")
   public ResponseEntity<List<StockProductDTO>> getLowStockAlerts() {
-    return ResponseEntity.ok(stockProductRepository.findLowStockProducts().stream()
+    return ResponseEntity.ok(stockProductService.getLowStockProducts().stream()
         .map(this::mapToDTO)
         .collect(Collectors.toList()));
   }
 
   @GetMapping("/category/{category}")
   public ResponseEntity<List<StockProductDTO>> getByCategory(@PathVariable StockProduct.Category category) {
-    return ResponseEntity.ok(stockProductRepository.findByCategory(category).stream()
+    return ResponseEntity.ok(stockProductService.findByCategory(category).stream()
         .map(this::mapToDTO)
         .collect(Collectors.toList()));
   }
@@ -64,14 +66,14 @@ public class StockProductController {
   public ResponseEntity<List<StockProductDTO>> getExpiringProducts(
       @RequestParam(defaultValue = "30") int days) {
     LocalDate expirationDate = LocalDate.now().plusDays(days);
-    return ResponseEntity.ok(stockProductRepository.findExpiringProducts(expirationDate).stream()
+    return ResponseEntity.ok(stockProductService.getExpiringProducts(expirationDate).stream()
         .map(this::mapToDTO)
         .collect(Collectors.toList()));
   }
 
   @GetMapping("/barcode/{barcode}")
   public ResponseEntity<StockProductDTO> getByBarcode(@PathVariable String barcode) {
-    return stockProductRepository.findByBarcode(barcode)
+    return stockProductService.findByBarcode(barcode)
         .map(this::mapToDTO)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
@@ -79,8 +81,66 @@ public class StockProductController {
 
   @GetMapping("/search")
   public ResponseEntity<List<StockProductDTO>> searchByName(@RequestParam String name) {
-    return ResponseEntity.ok(stockProductRepository.findByNameContainingIgnoreCase(name).stream()
+    return ResponseEntity.ok(stockProductService.searchByName(name).stream()
         .map(this::mapToDTO)
         .collect(Collectors.toList()));
+  }
+
+  @PostMapping
+  public ResponseEntity<StockProductDTO> createProduct(@RequestBody StockProductDTO productDto) {
+    StockProduct product = new StockProduct();
+    product.setName(productDto.getName());
+    product.setBarcode(productDto.getBarcode());
+    product.setCurrentStock(productDto.getCurrentStock() != null ? productDto.getCurrentStock() : 0);
+    product.setMinStock(productDto.getMinStock() != null ? productDto.getMinStock() : 0);
+    try {
+      if (productDto.getCategory() != null) {
+        product.setCategory(StockProduct.Category.valueOf(productDto.getCategory()));
+      }
+    } catch (IllegalArgumentException e) {
+      // ignore invalid category or handle better
+    }
+    product.setLocation(productDto.getLocation());
+    product.setSellingPrice(
+        productDto.getSellingPrice() != null ? java.math.BigDecimal.valueOf(productDto.getSellingPrice()) : null);
+    product.setIsActive(true);
+
+    StockProduct saved = stockProductService.saveProduct(product);
+    return ResponseEntity.ok(mapToDTO(saved));
+  }
+
+  @GetMapping("/stats")
+  public ResponseEntity<java.util.Map<String, Object>> getStats() {
+    // Simple aggregate stats
+    List<StockProduct> all = stockProductService.getAllActiveProducts();
+    int totalProducts = all.size();
+    int lowStock = stockProductService.getLowStockProducts().size();
+    int expired = stockProductService.getExpiringProducts(LocalDate.now()).size();
+    double totalValue = all.stream()
+        .filter(p -> p.getUnitCost() != null)
+        .mapToDouble(p -> p.getUnitCost().doubleValue() * p.getCurrentStock())
+        .sum();
+
+    java.util.Map<String, Object> stats = new java.util.HashMap<>();
+    stats.put("totalProducts", totalProducts);
+    stats.put("totalStockValue", totalValue);
+    stats.put("lowStockAlerts", lowStock);
+    stats.put("expiredProducts", expired);
+
+    return ResponseEntity.ok(stats);
+  }
+
+  @GetMapping("/movements")
+  public ResponseEntity<List<com.hss.hss_backend.entity.StockTransaction>> getStockMovements() {
+    return ResponseEntity.ok(stockProductService.getLastTransactions());
+  }
+
+  @GetMapping("/settings")
+  public ResponseEntity<java.util.Map<String, Object>> getSettings() {
+    // Mock settings for now
+    java.util.Map<String, Object> settings = new java.util.HashMap<>();
+    settings.put("lowStockThreshold", 10);
+    settings.put("autoOrderEnabled", false);
+    return ResponseEntity.ok(settings);
   }
 }

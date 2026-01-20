@@ -195,15 +195,28 @@ public class UserService {
 
     private UserAccount initializeUserDependencies(UserAccount user) {
         if (user.getStaff() != null) {
-            org.hibernate.Hibernate.initialize(user.getStaff());
-            if (user.getStaff().getClinic() != null) {
-                org.hibernate.Hibernate.initialize(user.getStaff().getClinic());
+            try {
+                org.hibernate.Hibernate.initialize(user.getStaff());
+                if (user.getStaff().getClinic() != null) {
+                    org.hibernate.Hibernate.initialize(user.getStaff().getClinic());
+                }
+            } catch (jakarta.persistence.EntityNotFoundException e) {
+                System.err.println("Warning: Staff reference not found for user " + user.getUserId());
+                user.setStaff(null);
+                userAccountRepository.save(user);
             }
         }
         if (user.getOwner() != null) {
-            org.hibernate.Hibernate.initialize(user.getOwner());
-            if (user.getOwner().getClinic() != null) {
-                org.hibernate.Hibernate.initialize(user.getOwner().getClinic());
+            try {
+                org.hibernate.Hibernate.initialize(user.getOwner());
+                if (user.getOwner().getClinic() != null) {
+                    org.hibernate.Hibernate.initialize(user.getOwner().getClinic());
+                }
+            } catch (jakarta.persistence.EntityNotFoundException e) {
+                System.err.println("Warning: Owner reference not found for user " + user.getUserId()
+                        + ". Removing invalid reference.");
+                user.setOwner(null);
+                userAccountRepository.save(user);
             }
         }
         return user;

@@ -62,7 +62,7 @@ management:
     health:
       show-details: always
   server:
-    port: ${PORT:8080}
+    port: ${PORT:8090}
   metrics:
     export:
       prometheus:

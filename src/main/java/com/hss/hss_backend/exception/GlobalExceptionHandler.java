@@ -17,97 +17,111 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(DocumentNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleDocumentNotFoundException(
-            DocumentNotFoundException ex, WebRequest request) {
-        log.error("Document not found: {}", ex.getMessage());
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("Document Not Found")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-    }
+        @ExceptionHandler(DocumentNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleDocumentNotFoundException(
+                        DocumentNotFoundException ex, WebRequest request) {
+                log.error("Document not found: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .error("Document Not Found")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
 
-    @ExceptionHandler(FileNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleFileNotFoundException(
-            FileNotFoundException ex, WebRequest request) {
-        log.error("File not found: {}", ex.getMessage());
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.NOT_FOUND.value())
-                .error("File Not Found")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
-    }
+        @ExceptionHandler(FileNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleFileNotFoundException(
+                        FileNotFoundException ex, WebRequest request) {
+                log.error("File not found: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .error("File Not Found")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
 
-    @ExceptionHandler(FileStorageException.class)
-    public ResponseEntity<ErrorResponse> handleFileStorageException(
-            FileStorageException ex, WebRequest request) {
-        log.error("File storage error: {}", ex.getMessage());
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("File Storage Error")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-    }
+        @ExceptionHandler(FileStorageException.class)
+        public ResponseEntity<ErrorResponse> handleFileStorageException(
+                        FileStorageException ex, WebRequest request) {
+                log.error("File storage error: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                                .error("File Storage Error")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
 
-    @ExceptionHandler(InvalidFileException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidFileException(
-            InvalidFileException ex, WebRequest request) {
-        log.error("Invalid file: {}", ex.getMessage());
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Invalid File")
-                .message(ex.getMessage())
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-    }
+        @ExceptionHandler(InvalidFileException.class)
+        public ResponseEntity<ErrorResponse> handleInvalidFileException(
+                        InvalidFileException ex, WebRequest request) {
+                log.error("Invalid file: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error("Invalid File")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
-            MethodArgumentNotValidException ex, WebRequest request) {
-        log.error("Validation error: {}", ex.getMessage());
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<ValidationErrorResponse> handleValidationExceptions(
+                        MethodArgumentNotValidException ex, WebRequest request) {
+                log.error("Validation error: {}", ex.getMessage());
 
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach((error) -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+                Map<String, String> errors = new HashMap<>();
+                ex.getBindingResult().getAllErrors().forEach((error) -> {
+                        String fieldName = ((FieldError) error).getField();
+                        String errorMessage = error.getDefaultMessage();
+                        errors.put(fieldName, errorMessage);
+                });
 
-        ValidationErrorResponse errorResponse = ValidationErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Validation Failed")
-                .message("Validation failed for the provided data")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .validationErrors(errors)
-                .build();
+                ValidationErrorResponse errorResponse = ValidationErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error("Validation Failed")
+                                .message("Validation failed for the provided data")
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .validationErrors(errors)
+                                .build();
 
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
-    }
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGenericException(
-            Exception ex, WebRequest request) {
-        log.error("Unexpected error: {}", ex.getMessage(), ex);
-        ErrorResponse errorResponse = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .error("Internal Server Error")
-                .message("An unexpected error occurred")
-                .path(request.getDescription(false).replace("uri=", ""))
-                .build();
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-    }
+        @ExceptionHandler(ResourceNotFoundException.class)
+        public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
+                        ResourceNotFoundException ex, WebRequest request) {
+                log.error("Resource not found: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.NOT_FOUND.value())
+                                .error("Resource Not Found")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+        }
+
+        @ExceptionHandler(Exception.class)
+        public ResponseEntity<ErrorResponse> handleGenericException(
+                        Exception ex, WebRequest request) {
+                log.error("Unexpected error: {}", ex.getMessage(), ex);
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                                .error("Internal Server Error")
+                                .message("An unexpected error occurred")
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
 }

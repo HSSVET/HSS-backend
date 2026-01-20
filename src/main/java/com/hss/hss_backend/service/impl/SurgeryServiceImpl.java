@@ -25,7 +25,7 @@ public class SurgeryServiceImpl implements SurgeryService {
   private final SurgeryRepository surgeryRepository;
   private final AnimalRepository animalRepository;
   private final SurgeryMapper surgeryMapper;
-  // private final InventoryService inventoryService; // To be injected
+  private final com.hss.hss_backend.service.StockProductService stockProductService;
 
   @Override
   public SurgeryDto createSurgery(SurgeryDto surgeryDto) {
@@ -41,7 +41,6 @@ public class SurgeryServiceImpl implements SurgeryService {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public SurgeryDto getSurgeryById(Long id) {
     Surgery surgery = surgeryRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Surgery not found with id: " + id));
@@ -49,9 +48,9 @@ public class SurgeryServiceImpl implements SurgeryService {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public List<SurgeryDto> getSurgeriesByAnimalId(Long animalId) {
-    return surgeryMapper.toDtoList(surgeryRepository.findByAnimal_AnimalId(animalId));
+    List<Surgery> surgeries = surgeryRepository.findByAnimal_AnimalId(animalId);
+    return surgeries.stream().map(surgeryMapper::toDto).toList();
   }
 
   @Override
@@ -60,9 +59,8 @@ public class SurgeryServiceImpl implements SurgeryService {
         .orElseThrow(() -> new ResourceNotFoundException("Surgery not found with id: " + id));
 
     surgery.setStatus(status);
-    // Validations or logic for specific transitions can go here
-
-    return surgeryMapper.toDto(surgeryRepository.save(surgery));
+    Surgery updatedSurgery = surgeryRepository.save(surgery);
+    return surgeryMapper.toDto(updatedSurgery);
   }
 
   @Override
@@ -70,8 +68,8 @@ public class SurgeryServiceImpl implements SurgeryService {
     Surgery surgery = surgeryRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Surgery not found with id: " + id));
 
-    // Update fields - MapStruct's update methods could verify this more cleanly but
-    // manual for now
+    if (surgeryDto.getDate() != null)
+      surgery.setDate(surgeryDto.getDate());
     if (surgeryDto.getNotes() != null)
       surgery.setNotes(surgeryDto.getNotes());
     if (surgeryDto.getPreOpInstructions() != null)
@@ -82,8 +80,13 @@ public class SurgeryServiceImpl implements SurgeryService {
       surgery.setAnesthesiaProtocol(surgeryDto.getAnesthesiaProtocol());
     if (surgeryDto.getAnesthesiaConsent() != null)
       surgery.setAnesthesiaConsent(surgeryDto.getAnesthesiaConsent());
+    if (surgeryDto.getVeterinarianId() != null)
+      surgery.setVeterinarianId(surgeryDto.getVeterinarianId());
+    if (surgeryDto.getStatus() != null)
+      surgery.setStatus(surgeryDto.getStatus());
 
-    return surgeryMapper.toDto(surgeryRepository.save(surgery));
+    Surgery updatedSurgery = surgeryRepository.save(surgery);
+    return surgeryMapper.toDto(updatedSurgery);
   }
 
   @Override
@@ -96,8 +99,16 @@ public class SurgeryServiceImpl implements SurgeryService {
 
     surgery.getMedications().add(med);
 
-    // TODO: Integrate InventoryService to deduct stock
-    // inventoryService.deductStock(med.getMedicineId(), med.getQuantity());
+    // Deduct stock if stockProductId is provided (assuming DTO has it or using
+    // medicineId as fallback)
+    Long stockId = medicationDto.getMedicineId(); // Using medicineId as stockId for simplicity if mapped
+    if (stockId != null) {
+      stockProductService.deductStock(stockId,
+          medicationDto.getQuantity() != null ? medicationDto.getQuantity().intValue() : 1,
+          "Surgery Medication: SURGERY for Animal: " + surgery.getAnimal().getName(),
+          "SURGERY",
+          surgery.getSurgeryId());
+    }
 
     return surgeryMapper.toDto(surgeryRepository.save(surgery));
   }

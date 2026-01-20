@@ -10,11 +10,11 @@ import java.util.Optional;
 
 @Repository
 public interface VaccineRepository extends JpaRepository<Vaccine, Long> {
-    
-    Optional<Vaccine> findByVaccineName(String vaccineName);
-    
-    List<Vaccine> findByVaccineNameContainingIgnoreCase(String vaccineName);
-    
-    @Query("SELECT v FROM Vaccine v WHERE v.boosterRequired = true")
-    List<Vaccine> findBoosterRequiredVaccines();
+
+  Optional<Vaccine> findByVaccineName(String vaccineName);
+
+  List<Vaccine> findByVaccineNameContainingIgnoreCase(String vaccineName);
+
+  @Query("SELECT v FROM Vaccine v WHERE v.boosterRequired = true")
+  List<Vaccine> findBoosterRequiredVaccines();
 }
