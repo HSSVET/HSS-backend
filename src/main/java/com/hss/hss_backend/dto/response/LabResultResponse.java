@@ -20,6 +20,7 @@ public class LabResultResponse {
     private String unit;
     private String normalRange;
     private String interpretation;
+    private String fileUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }
