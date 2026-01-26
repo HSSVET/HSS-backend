@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.HttpStatus;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/lab-tests")
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class LabTestController {
 
   private final LabTestRepository labTestRepository;
@@ -28,8 +31,37 @@ public class LabTestController {
   private final StorageService storageService;
 
   @GetMapping
-  public ResponseEntity<List<LabTestResponse>> getAllLabTests() {
-    return ResponseEntity.ok(LabTestMapper.toResponseList(labTestRepository.findAll()));
+  public ResponseEntity<org.springframework.data.domain.Page<LabTestResponse>> getAllLabTests(
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "10") int limit,
+      @RequestParam(required = false) LabTest.Status status) {
+    org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, limit,
+        org.springframework.data.domain.Sort.by("date").descending());
+
+    if (status != null) {
+      return ResponseEntity.ok(labTestRepository.findByStatus(status, pageable).map(LabTestMapper::toResponse));
+    }
+
+    return ResponseEntity.ok(labTestRepository.findAll(pageable).map(LabTestMapper::toResponse));
+  }
+
+  @GetMapping("/stats")
+  public ResponseEntity<com.hss.hss_backend.dto.response.LabStatsDto> getStatistics() {
+    long total = labTestRepository.count();
+    long pending = labTestRepository.countByStatus(LabTest.Status.PENDING);
+    long inProgress = labTestRepository.countByStatus(LabTest.Status.IN_PROGRESS);
+    long completed = labTestRepository.countByStatus(LabTest.Status.COMPLETED);
+    long cancelled = labTestRepository.countByStatus(LabTest.Status.CANCELLED);
+    long today = labTestRepository.countByDate(java.time.LocalDate.now());
+
+    return ResponseEntity.ok(com.hss.hss_backend.dto.response.LabStatsDto.builder()
+        .total(total)
+        .pending(pending)
+        .inProgress(inProgress)
+        .completed(completed)
+        .cancelled(cancelled)
+        .today(today)
+        .build());
   }
 
   @GetMapping("/{id}")
@@ -37,7 +69,7 @@ public class LabTestController {
     return labTestRepository.findById(id)
         .map(LabTestMapper::toResponse)
         .map(ResponseEntity::ok)
-        .orElse(ResponseEntity.notFound().build());
+        .orElse(new ResponseEntity<LabTestResponse>(HttpStatus.NOT_FOUND));
   }
 
   @GetMapping("/pending")
@@ -87,11 +119,12 @@ public class LabTestController {
 
       LabTest savedTest = labTestRepository.save(labTest);
       return ResponseEntity.ok(LabTestMapper.toResponse(savedTest));
-    }).orElse(ResponseEntity.badRequest().build());
+    }).orElse(new ResponseEntity<LabTestResponse>(HttpStatus.BAD_REQUEST));
   }
 
   @PostMapping("/{id}/results")
-  public ResponseEntity<LabTestResponse> uploadResult(
+  @Transactional
+  public ResponseEntity<?> uploadResult(
       @PathVariable Long id,
       @RequestParam("file") MultipartFile file,
       @RequestParam(required = false) String result,
@@ -102,7 +135,8 @@ public class LabTestController {
 
     return labTestRepository.findById(id).map(test -> {
       try {
-        String fileUrl = storageService.uploadFile(file, "lab-results/" + id);
+        Long clinicId = test.getAnimal().getClinic().getClinicId();
+        String fileUrl = storageService.uploadFile(file, "clinics/" + clinicId + "/lab-results/" + id);
 
         LabResult labResult = LabResult.builder()
             .labTest(test)
@@ -124,9 +158,10 @@ public class LabTestController {
 
         LabTest savedTest = labTestRepository.save(test);
         return ResponseEntity.ok(LabTestMapper.toResponse(savedTest));
-      } catch (IOException e) {
-        return ResponseEntity.internalServerError().<LabTestResponse>build();
+      } catch (Exception e) {
+        e.printStackTrace(); // Log full stack trace
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error uploading file: " + e.getMessage());
       }
-    }).orElse(ResponseEntity.notFound().build());
+    }).orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
   }
 }

@@ -22,4 +22,9 @@ public class VaccinationCreateRequest {
   // Inventory integration
   private Long stockProductId;
   private Boolean deductStock;
+
+  // Flow integration
+  private Long appointmentId;
+  private Boolean createNextAppointment;
+  private Boolean createInvoice;
 }

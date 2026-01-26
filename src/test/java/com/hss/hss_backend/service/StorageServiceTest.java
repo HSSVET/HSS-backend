@@ -48,7 +48,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, TEST_BLOB_NAME);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(expirationTime, TimeUnit.MILLISECONDS))
+        when(blob.signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
                 .thenReturn(new URL(TEST_SIGNED_URL));
 
         // When
@@ -58,7 +58,7 @@ class StorageServiceTest {
         assertNotNull(result);
         assertEquals(TEST_SIGNED_URL, result);
         verify(storage).get(expectedBlobId);
-        verify(blob).signUrl(expirationTime, TimeUnit.MILLISECONDS);
+        verify(blob).signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class));
     }
 
     @Test
@@ -70,7 +70,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, TEST_BLOB_NAME);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(anyLong(), eq(TimeUnit.MILLISECONDS)))
+        when(blob.signUrl(anyLong(), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
                 .thenReturn(new URL(TEST_SIGNED_URL));
 
         // When
@@ -80,7 +80,7 @@ class StorageServiceTest {
         // Then
         assertNotNull(result1);
         assertNotNull(result2);
-        verify(blob, times(2)).signUrl(anyLong(), eq(TimeUnit.MILLISECONDS));
+        verify(blob, times(2)).signUrl(anyLong(), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class));
     }
 
     @Test
@@ -96,7 +96,8 @@ class StorageServiceTest {
             storageService.generateSignedUrl(nonExistentFile, 3600000L);
         });
 
-        assertEquals("File not found: " + nonExistentFile, exception.getMessage());
+        assertEquals("File not found in GCP: " + nonExistentFile + ", bucket: " + expectedBlobId.getBucket(),
+                exception.getMessage());
         verify(storage).get(expectedBlobId);
     }
 
@@ -108,7 +109,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, simpleFilePath);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(expirationTime, TimeUnit.MILLISECONDS))
+        when(blob.signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
                 .thenReturn(new URL(TEST_SIGNED_URL));
 
         // When
@@ -127,7 +128,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, TEST_BLOB_NAME);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(zeroExpirationTime, TimeUnit.MILLISECONDS))
+        when(blob.signUrl(eq(zeroExpirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
                 .thenReturn(new URL(TEST_SIGNED_URL));
 
         // When
@@ -136,7 +137,7 @@ class StorageServiceTest {
         // Then
         assertNotNull(result);
         assertEquals(TEST_SIGNED_URL, result);
-        verify(blob).signUrl(zeroExpirationTime, TimeUnit.MILLISECONDS);
+        verify(blob).signUrl(eq(zeroExpirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class));
     }
 
     @Test
@@ -146,7 +147,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, TEST_BLOB_NAME);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(negativeExpirationTime, TimeUnit.MILLISECONDS))
+        when(blob.signUrl(eq(negativeExpirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
                 .thenReturn(new URL(TEST_SIGNED_URL));
 
         // When
@@ -155,7 +156,7 @@ class StorageServiceTest {
         // Then
         assertNotNull(result);
         assertEquals(TEST_SIGNED_URL, result);
-        verify(blob).signUrl(negativeExpirationTime, TimeUnit.MILLISECONDS);
+        verify(blob).signUrl(eq(negativeExpirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class));
     }
 
     @Test
@@ -180,7 +181,7 @@ class StorageServiceTest {
         BlobId expectedBlobId = BlobId.of(BUCKET_NAME, TEST_BLOB_NAME);
 
         when(storage.get(expectedBlobId)).thenReturn(blob);
-        when(blob.signUrl(anyLong(), eq(TimeUnit.MILLISECONDS)))
+        when(blob.signUrl(anyLong(), any(TimeUnit.class), any(Storage.SignUrlOption.class)))
                 .thenThrow(new RuntimeException("Failed to sign URL"));
 
         // When & Then
@@ -189,7 +190,27 @@ class StorageServiceTest {
         });
 
         assertEquals("Failed to sign URL", exception.getMessage());
-        verify(blob).signUrl(anyLong(), eq(TimeUnit.MILLISECONDS));
+        verify(blob).signUrl(anyLong(), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class));
+    }
+
+    @Test
+    void generateSignedUrl_CrossBucket() throws MalformedURLException {
+        // Given
+        String crossBucketPath = "gs://other-bucket/folder/file.jpg";
+        long expirationTime = 3600000L;
+        BlobId expectedBlobId = BlobId.of("other-bucket", "folder/file.jpg");
+
+        when(storage.get(expectedBlobId)).thenReturn(blob);
+        when(blob.signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
+                .thenReturn(new URL(TEST_SIGNED_URL));
+
+        // When
+        String result = storageService.generateSignedUrl(crossBucketPath, expirationTime);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(TEST_SIGNED_URL, result);
+        verify(storage).get(expectedBlobId);
     }
 
     @Test
@@ -225,7 +246,9 @@ class StorageServiceTest {
         String result = invokeExtractBlobName(invalidGsPath);
 
         // Then
-        assertEquals("gs://bucket-name", result);
+        // With logic fallback: bucketName (default), "bucket-name" (path without
+        // protocol)
+        assertEquals("bucket-name", result);
     }
 
     // Helper method to test private extractBlobName method
@@ -237,5 +260,53 @@ class StorageServiceTest {
         } catch (Exception e) {
             throw new RuntimeException("Failed to invoke extractBlobName method", e);
         }
+    }
+
+    @Test
+    void generateSignedUrl_UploadsPath_WithLocalDisabled_ShouldReturnGcsUrl() throws MalformedURLException {
+        // Given
+        ReflectionTestUtils.setField(storageService, "useLocalStorageFallback", false);
+        String uploadsPath = "/uploads/test-file.jpg";
+        long expirationTime = 3600000L;
+        BlobId expectedBlobId = BlobId.of(BUCKET_NAME, "uploads/test-file.jpg"); // "uploads/" prefix is kept as part of
+                                                                                 // blob name
+
+        when(storage.get(expectedBlobId)).thenReturn(blob);
+        when(blob.signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
+                .thenReturn(new URL(TEST_SIGNED_URL));
+
+        // When
+        String result = storageService.generateSignedUrl(uploadsPath, expirationTime);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(TEST_SIGNED_URL, result);
+        verify(storage).get(expectedBlobId);
+    }
+
+    @Test
+    void generateSignedUrl_WithBucketFallback_ShouldReturnUrlFromDefaultBucket() throws MalformedURLException {
+        // Given
+        String wrongBucketPath = "gs://wrong-bucket/test-folder/test-file.jpg";
+        long expirationTime = 3600000L;
+        BlobId originalBlobId = BlobId.of("wrong-bucket", "test-folder/test-file.jpg");
+        BlobId fallbackBlobId = BlobId.of(BUCKET_NAME, "test-folder/test-file.jpg");
+
+        // First attempt returns null (file not found in wrong-bucket)
+        when(storage.get(originalBlobId)).thenReturn(null);
+        // Fallback attempt returns the blob
+        when(storage.get(fallbackBlobId)).thenReturn(blob);
+
+        when(blob.signUrl(eq(expirationTime), eq(TimeUnit.MILLISECONDS), any(Storage.SignUrlOption.class)))
+                .thenReturn(new URL(TEST_SIGNED_URL));
+
+        // When
+        String result = storageService.generateSignedUrl(wrongBucketPath, expirationTime);
+
+        // Then
+        assertNotNull(result);
+        assertEquals(TEST_SIGNED_URL, result);
+        verify(storage).get(originalBlobId);
+        verify(storage).get(fallbackBlobId);
     }
 }
