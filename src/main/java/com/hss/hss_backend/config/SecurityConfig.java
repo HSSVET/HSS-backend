@@ -95,17 +95,34 @@ public class SecurityConfig {
         return jwtAuthenticationConverter;
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+    
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource() {
+    	CorsConfiguration configuration = new CorsConfiguration();
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-}
+    	configuration.setAllowedOrigins(List.of(
+        	"https://hss-cloud-473511.web.app",
+     		"https://hss-cloud-473511.firebaseapp.com",
+        	"http://localhost:3000"
+   	 ))	;
+
+    	configuration.setAllowedMethods(List.of(
+        	"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+   	 ));
+
+    	configuration.setAllowedHeaders(List.of(
+        	"Authorization",
+        	"Content-Type",
+   	 }    	"Cache-Control"
+    ));
+
+    	configuration.setAllowCredentials(true);
+    	configuration.setMaxAge(3600L);
+
+    	UrlBasedCorsConfigurationSource source =
+            	new UrlBasedCorsConfigurationSource();
+    	source.registerCorsConfiguration("/**", configuration);
+
+    	return source;
+	}
+
