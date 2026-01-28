@@ -40,27 +40,15 @@ public class VaccinationService {
         .orElseThrow(() -> new ResourceNotFoundException("Vaccine", request.getVaccineId()));
 
     String batchNumber = null;
+    StockProduct usedStockProduct = null;
 
-    // Deduct Stock if requested
-    if (Boolean.TRUE.equals(request.getDeductStock()) && request.getStockProductId() != null) {
-      StockProduct stockProduct = stockProductService.getProductById(request.getStockProductId());
-
-      // Validate that Stock Product matches Vaccine (optional, e.g. check name or
-      // verify linkage if possible)
-      // For now, assume user selected correct stock item.
-
-      stockProductService.deductStock(
-          request.getStockProductId(),
-          1,
-          "Vaccination: " + vaccine.getVaccineName() + " for Animal: " + animal.getName(),
-          "VACCINATION",
-          null // Will be updated with ID after save? Circular dependency.
-               // Better: save vaccination first? But transactional...
-      );
-
-      batchNumber = stockProduct.getLotNo(); // Use lot number as batch number
+    // Get StockProduct if specified (for linking to vaccination record)
+    if (request.getStockProductId() != null) {
+      usedStockProduct = stockProductService.getProductById(request.getStockProductId());
+      batchNumber = usedStockProduct.getLotNo(); // Use lot number as batch number
     }
 
+    // Build vaccination record with StockProduct link
     VaccinationRecord record = VaccinationRecord.builder()
         .animal(animal)
         .vaccine(vaccine)
@@ -70,16 +58,23 @@ public class VaccinationService {
         .veterinarianName(request.getVeterinarianName())
         .notes(request.getNotes())
         .batchNumber(batchNumber)
+        .stockProduct(usedStockProduct)
+        .clinic(animal.getOwner().getClinic())
         .build();
 
     VaccinationRecord savedRecord = vaccinationRecordRepository.save(record);
 
-    // If we want to link transaction to vaccination record, we would need to pass
-    // savedRecord.getId() to deductStock.
-    // But deductStock was called before.
-    // We can update the transaction notes or relatedId afterwards if needed, but
-    // "relatedId" usage in StockTransaction
-    // implies we should pass it.
+    // Deduct Stock after saving record (so we have the record ID)
+    if (Boolean.TRUE.equals(request.getDeductStock()) && usedStockProduct != null) {
+      stockProductService.deductStock(
+          request.getStockProductId(),
+          1,
+          "Vaccination: " + vaccine.getVaccineName() + " for Animal: " + animal.getName(),
+          "VACCINATION",
+          savedRecord.getVaccinationRecordId()
+      );
+      log.info("Deducted stock for vaccination record ID: {}", savedRecord.getVaccinationRecordId());
+    }
     // Link to existing Appointment and update Status
     if (request.getAppointmentId() != null) {
       appointmentService.updateAppointmentStatus(request.getAppointmentId(), Appointment.Status.COMPLETED);
