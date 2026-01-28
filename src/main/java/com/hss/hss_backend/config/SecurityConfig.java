@@ -121,7 +121,9 @@ public class SecurityConfig {
             java.util.Map<String, Object> claims = new java.util.HashMap<>();
             claims.put("sub", "test-user");
 //            claims.put("iss", "https://securetoken.google.com/hss-cloud-473511"); // Optional for now
-            claims.put("roles", java.util.List.of("ADMIN", "VETERINARIAN", "STAFF")); // Grant full access
+            // Dev-only dummy roles: allow admin + super-admin screens locally.
+            // NOTE: In production, this MUST be removed and replaced with real JWT verification.
+            claims.put("roles", java.util.List.of("SUPER_ADMIN", "ADMIN", "VETERINARIAN", "STAFF")); // Grant full access
             
             // Return a dummy validated JWT
             // Note: In production, this MUST be removed
