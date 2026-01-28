@@ -89,4 +89,11 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
 
     @Query("SELECT a.breed.name, COUNT(a) FROM Animal a WHERE a.species.speciesId = :speciesId GROUP BY a.breed.name")
     List<Object[]> getAnimalCountByBreedForSpecies(@Param("speciesId") Long speciesId);
+    
+    // Fetch animal with owner and clinic for check-in
+    @Query("SELECT a FROM Animal a " +
+           "LEFT JOIN FETCH a.owner o " +
+           "LEFT JOIN FETCH o.clinic " +
+           "WHERE a.animalId = :animalId")
+    Optional<Animal> findByIdWithOwnerAndClinic(@Param("animalId") Long animalId);
 }

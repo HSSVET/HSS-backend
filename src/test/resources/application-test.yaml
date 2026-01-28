@@ -2,12 +2,14 @@ spring:
   cloud:
     gcp:
       storage:
-        enabled: true
+        enabled: false
         bucket-name: test-bucket
         credentials:
           location: classpath:test-service-account.json
       sql:
         enabled: false  # Disable Cloud SQL for tests
+  flyway:
+    enabled: false
   security:
     oauth2:
       client:

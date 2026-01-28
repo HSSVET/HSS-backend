@@ -49,16 +49,56 @@ public class FileController {
 
     @GetMapping("/download")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<byte[]> downloadFile(@RequestParam("filePath") String filePath) {
-        log.info("Downloading file: {}", filePath);
+    public ResponseEntity<byte[]> downloadFile(
+            @RequestParam("filePath") String filePath,
+            @RequestParam(value = "inline", defaultValue = "false") boolean inline) {
+        log.info("Downloading file: {}, inline: {}", filePath, inline);
 
         try {
             byte[] fileContent = storageService.downloadFile(filePath);
+
+            // Determine content type
+            String contentType = "application/octet-stream";
+            if (filePath.toLowerCase().endsWith(".pdf")) {
+                contentType = "application/pdf";
+            } else if (filePath.toLowerCase().endsWith(".png")) {
+                contentType = "image/png";
+            } else if (filePath.toLowerCase().endsWith(".jpg") || filePath.toLowerCase().endsWith(".jpeg")) {
+                contentType = "image/jpeg";
+            }
+
             return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header("Content-Disposition",
+                            (inline ? "inline" : "attachment") + "; filename=\"" + getFileName(filePath) + "\"")
                     .body(fileContent);
         } catch (Exception e) {
             log.error("Failed to download file: {}", e.getMessage());
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    private String getFileName(String filePath) {
+        if (filePath == null)
+            return "file";
+        int lastSlash = filePath.lastIndexOf('/');
+        return lastSlash >= 0 ? filePath.substring(lastSlash + 1) : filePath;
+    }
+
+    @GetMapping("/view")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
+    public ResponseEntity<Void> viewFile(@RequestParam("filePath") String filePath) {
+        log.info("Redirecting to file: {}", filePath);
+
+        try {
+            // Generate short-lived signed URL (e.g., 1 hour)
+            String signedUrl = storageService.generateSignedUrl(filePath, 3600000);
+
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header("Location", signedUrl)
+                    .build();
+        } catch (Exception e) {
+            log.error("Failed to generate view URL: {}", e.getMessage());
             return ResponseEntity.notFound().build();
         }
     }

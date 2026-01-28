@@ -121,6 +121,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", request.getAnimalId()));
 
         Appointment appointment = Appointment.builder()
+                .clinic(animal.getClinic())
                 .animal(animal)
                 .dateTime(request.getDateTime())
                 .subject(request.getSubject())
@@ -142,6 +143,7 @@ public class AppointmentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", animalId));
 
         Appointment appointment = Appointment.builder()
+                .clinic(animal.getClinic())
                 .animal(animal)
                 .dateTime(dateTime)
                 .subject(subject)

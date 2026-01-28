@@ -81,6 +81,14 @@ public class AnimalController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<AnimalResponse>> searchAnimals(@RequestParam String query) {
+        log.info("Searching animals with query: {}", query);
+        List<AnimalResponse> response = animalService.searchAnimals(query);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/microchip/{microchipNo}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<AnimalResponse> getAnimalByMicrochip(@PathVariable String microchipNo) {

@@ -21,7 +21,7 @@ public class AuthSyncController {
   @Autowired
   private UserService userService;
 
-  @Autowired
+  @Autowired(required = false)
   private FirebaseAuth firebaseAuth;
 
   @PostMapping("/sync")
@@ -75,12 +75,17 @@ public class AuthSyncController {
       }
     }
 
-    try {
-      firebaseAuth.setCustomUserClaims(firebaseUid, claims);
-      response.put("claimsUpdated", true);
-    } catch (Exception e) {
+    if (firebaseAuth != null) {
+      try {
+        firebaseAuth.setCustomUserClaims(firebaseUid, claims);
+        response.put("claimsUpdated", true);
+      } catch (Exception e) {
+        response.put("claimsUpdated", false);
+        response.put("error", "Failed to set custom claims: " + e.getMessage());
+      }
+    } else {
       response.put("claimsUpdated", false);
-      response.put("error", "Failed to set custom claims: " + e.getMessage());
+      response.put("warning", "Firebase Auth disabled, claims not updated");
     }
 
     return ResponseEntity.ok(response);

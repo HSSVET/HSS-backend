@@ -5,9 +5,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -123,5 +125,41 @@ public class GlobalExceptionHandler {
                                 .path(request.getDescription(false).replace("uri=", ""))
                                 .build();
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+
+        @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+        public ResponseEntity<ErrorResponse> handleMethodArgumentTypeMismatch(
+                        MethodArgumentTypeMismatchException ex, WebRequest request) {
+                String name = ex.getName();
+                String type = ex.getRequiredType() != null ? ex.getRequiredType().getSimpleName() : "unknown";
+                Object value = ex.getValue();
+                String message = String.format("Parameter '%s' should be of type %s", name, type);
+
+                log.error("Type mismatch: {}", message);
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error("Type Mismatch")
+                                .message(message)
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+
+        @ExceptionHandler(MissingServletRequestParameterException.class)
+        public ResponseEntity<ErrorResponse> handleMissingServletRequestParameter(
+                        MissingServletRequestParameterException ex, WebRequest request) {
+                String name = ex.getParameterName();
+                String message = String.format("Parameter '%s' is missing", name);
+
+                log.error("Missing parameter: {}", message);
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error("Missing Parameter")
+                                .message(message)
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
 }

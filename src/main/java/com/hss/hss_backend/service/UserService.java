@@ -293,7 +293,7 @@ public class UserService {
         return userAccountRepository.save(account);
     }
 
-    @Autowired
+    @Autowired(required = false)
     private com.google.firebase.auth.FirebaseAuth firebaseAuth;
 
     /**

@@ -10,34 +10,29 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
-    
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/api/**")
-            // Development
-            .allowedOrigins(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "http://127.0.0.1:3000"
-            )
-            // Production (update with your domain)
-            .allowedOriginPatterns(
-                "https://*.run.app",  // Google Cloud Run
-                "https://yourdomain.com"
-            )
-            .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
-            .allowedHeaders("*")
-            .allowCredentials(true)
-            // IMPORTANT: Expose cache headers for React Query
-            .exposedHeaders(
-                "Cache-Control",
-                "ETag",
-                "Last-Modified",
-                "X-Total-Count",  // For pagination
-                "X-Page-Number",
-                "X-Page-Size",
-                "X-Total-Pages"
-            )
-            .maxAge(3600); // Preflight cache: 1 hour
-    }
+
+        @Override
+        public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                                // Development and Production origins
+                                .allowedOriginPatterns(
+                                                "http://localhost:3000",
+                                                "http://localhost:5173",
+                                                "http://127.0.0.1:3000",
+                                                "https://*.run.app", // Google Cloud Run
+                                                "https://yourdomain.com")
+                                .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
+                                .allowedHeaders("*")
+                                .allowCredentials(true)
+                                // IMPORTANT: Expose cache headers for React Query
+                                .exposedHeaders(
+                                                "Cache-Control",
+                                                "ETag",
+                                                "Last-Modified",
+                                                "X-Total-Count", // For pagination
+                                                "X-Page-Number",
+                                                "X-Page-Size",
+                                                "X-Total-Pages")
+                                .maxAge(3600); // Preflight cache: 1 hour
+        }
 }

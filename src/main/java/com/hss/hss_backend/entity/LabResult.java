@@ -39,4 +39,7 @@ public class LabResult extends BaseEntity {
 
     @Column(name = "interpretation", columnDefinition = "TEXT")
     private String interpretation;
+
+    @Column(name = "file_url")
+    private String fileUrl;
 }

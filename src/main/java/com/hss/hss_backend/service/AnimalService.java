@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException; // Added import
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -132,6 +133,45 @@ public class AnimalService {
         log.info("Searching animals by owner name: {}", ownerName);
         List<Animal> animals = animalRepository.findByOwnerNameContaining(ownerName);
         return AnimalMapper.toResponseList(animals);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AnimalResponse> searchAnimals(String query) {
+        log.info("Searching animals with query: {}", query);
+        
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        
+        String searchTerm = query.trim();
+        
+        // Search by animal name
+        List<Animal> animalsByName = animalRepository.findByNameContainingIgnoreCase(searchTerm);
+        
+        // Search by owner name
+        List<Animal> animalsByOwner = animalRepository.findByOwnerNameContaining(searchTerm);
+        
+        // Search by microchip (exact match or contains)
+        List<Animal> animalsByMicrochip = animalRepository.findByMicrochipNo(searchTerm)
+                .map(List::of)
+                .orElse(List.of());
+        
+        // Combine results and remove duplicates
+        Set<Animal> uniqueAnimals = new java.util.HashSet<>();
+        uniqueAnimals.addAll(animalsByName);
+        uniqueAnimals.addAll(animalsByOwner);
+        uniqueAnimals.addAll(animalsByMicrochip);
+        
+        // Filter by clinic context
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId != null) {
+            uniqueAnimals.removeIf(animal -> 
+                animal.getOwner().getClinic() == null || 
+                !clinicId.equals(animal.getOwner().getClinic().getClinicId())
+            );
+        }
+        
+        return AnimalMapper.toResponseList(new java.util.ArrayList<>(uniqueAnimals));
     }
 
     @Transactional(readOnly = true)
