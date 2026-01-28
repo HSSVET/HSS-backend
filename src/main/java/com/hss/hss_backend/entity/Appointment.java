@@ -50,8 +50,26 @@ public class Appointment extends BaseEntity {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "appointment_type", length = 20)
+    @Builder.Default
+    private AppointmentType appointmentType = AppointmentType.GENERAL_EXAM;
+
+    @Column(name = "check_in_time")
+    private LocalDateTime checkInTime;
+
+    @Column(name = "queue_number")
+    private Integer queueNumber;
+
+    @Column(name = "estimated_start_time")
+    private LocalDateTime estimatedStartTime;
+
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Reminder> reminders;
+
+    public enum AppointmentType {
+        GENERAL_EXAM, VACCINATION, SURGERY, FOLLOW_UP, EMERGENCY, LAB_RESULTS
+    }
 
     public enum Status {
         SCHEDULED, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW

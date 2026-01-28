@@ -48,4 +48,26 @@ public class VaccinationRecord extends BaseEntity {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    private Clinic clinic;
+
+    @Column(name = "barcode", length = 100, unique = true)
+    private String barcode;
+
+    @Column(name = "serial_number", length = 100)
+    private String serialNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "appointment_id")
+    private Appointment appointment;
+
+    @Column(name = "pre_exam_completed")
+    @Builder.Default
+    private Boolean preExamCompleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "next_appointment_id")
+    private Appointment nextAppointment;
 }
