@@ -49,7 +49,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-project-id}
+          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-cloud-473511}
 
 # Server Configuration for Production
 server:
@@ -93,3 +93,8 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+firebase:
+  enabled: true
+  project-id: hss-cloud-473511
+  service-account-key: file:/firebase-key-volume/key.json
