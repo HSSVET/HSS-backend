@@ -51,7 +51,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/vaccinations/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                         .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
@@ -96,42 +95,33 @@ public class SecurityConfig {
         return jwtAuthenticationConverter;
     }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Allow all origin patterns to support:
-        // - Admin portal: admin.hssvet.com (or admin.localhost for local dev)
-        // - Customer portal: hssvet.com (or localhost for local dev)
-        // - Clinic-specific paths: hssvet.com/klinikadi/*
-        // TODO: For production, replace with explicit allowed origins for better
-        // security
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+    
+	@Bean
+	public CorsConfigurationSource corsConfigurationSource() {
+    	CorsConfiguration configuration = new CorsConfiguration();
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
-    @Bean
-    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
-        return token -> {
-            java.util.Map<String, Object> claims = new java.util.HashMap<>();
-            claims.put("sub", "test-user");
-//            claims.put("iss", "https://securetoken.google.com/hss-cloud-473511"); // Optional for now
-            claims.put("roles", java.util.List.of("ADMIN", "VETERINARIAN", "STAFF")); // Grant full access
-            
-            // Return a dummy validated JWT
-            // Note: In production, this MUST be removed
-            return new org.springframework.security.oauth2.jwt.Jwt(
-                    token, 
-                    java.time.Instant.now(), 
-                    java.time.Instant.now().plusSeconds(3600), 
-                    java.util.Map.of("alg", "none"), 
-                    claims
-            );
-        };
-    }
-}
+    	configuration.setAllowedOrigins(List.of(
+        	"https://hss-cloud-473511.web.app",
+     		"https://hss-cloud-473511.firebaseapp.com",
+        	"http://localhost:3000"
+   	 ))	;
+
+    	configuration.setAllowedMethods(List.of(
+        	"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+   	 ));
+
+    	configuration.setAllowedHeaders(List.of(
+        	"Authorization",
+        	"Content-Type",
+           	"Cache-Control"
+    ));
+
+    	configuration.setAllowCredentials(true);
+    	configuration.setMaxAge(3600L);
+
+    	UrlBasedCorsConfigurationSource source =
+            	new UrlBasedCorsConfigurationSource();
+    	source.registerCorsConfiguration("/**", configuration);
+
+    	return source;
+	}
