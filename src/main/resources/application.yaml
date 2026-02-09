@@ -38,12 +38,12 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-project-id}
+          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-cloud-473511}
 
 # Firebase Configuration
 firebase:
   enabled: true
-  project-id: ${FIREBASE_PROJECT_ID:hss-project-id}
+  project-id: ${FIREBASE_PROJECT_ID:hss-cloud-473511}
   service-account-key: ${FIREBASE_SERVICE_ACCOUNT_KEY:}
 
 # Server Configuration
