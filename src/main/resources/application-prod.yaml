@@ -7,7 +7,7 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       connection-timeout: 60000  # 60 saniye
-      initialization-fail-timeout: 0
+      initialization-fail-timeout: 1
       maximum-pool-size: 5  # Daha az connection
       minimum-idle: 1
       idle-timeout: 300000  # 5 dakika
@@ -26,7 +26,7 @@ spring:
   # JPA Configuration for Production
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -38,10 +38,10 @@ spring:
   
   # Flyway Configuration for Production
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: true
+    validate-on-migrate: false
     fail-on-missing-locations: false
   
   # Security Configuration for Production
