@@ -44,7 +44,8 @@ spring:
 firebase:
   enabled: true
   project-id: ${FIREBASE_PROJECT_ID:hss-cloud-473511}
-  service-account-key: ${FIREBASE_SERVICE_ACCOUNT_KEY:}
+  # Cloud Run'da oluşturduğun Mount Path + dosya adı:
+  service-account-key: file:/firebase-key-volume/key.json
 
 # Server Configuration
 server:
