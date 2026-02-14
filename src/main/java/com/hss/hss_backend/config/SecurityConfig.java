@@ -1,5 +1,7 @@
 package com.hss.hss_backend.config;
 
+import com.hss.hss_backend.repository.ClinicRepository;
+import com.hss.hss_backend.security.ClinicContextFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +11,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -25,8 +28,14 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public ClinicContextFilter clinicContextFilter(ClinicRepository clinicRepository) {
+        return new ClinicContextFilter(clinicRepository);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, ClinicContextFilter clinicContextFilter) throws Exception {
         http
+                .addFilterAfter(clinicContextFilter, BearerTokenAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -41,7 +50,6 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers("/api/species/all").permitAll()
                         .requestMatchers("/api/breeds/species/**").permitAll()
-                        .requestMatchers("/api/owners").permitAll()
                         // Protected endpoints
                         .requestMatchers("/api/animals/**").permitAll() // TODO: Review permissions
                         .requestMatchers("/api/appointments/**").permitAll() // TODO: Review permissions
@@ -114,26 +122,5 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
-    }
-    @Bean
-    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
-        return token -> {
-            java.util.Map<String, Object> claims = new java.util.HashMap<>();
-            claims.put("sub", "test-user");
-//            claims.put("iss", "https://securetoken.google.com/hss-cloud-473511"); // Optional for now
-            // Dev-only dummy roles: allow admin + super-admin screens locally.
-            // NOTE: In production, this MUST be removed and replaced with real JWT verification.
-            claims.put("roles", java.util.List.of("SUPER_ADMIN", "ADMIN", "VETERINARIAN", "STAFF")); // Grant full access
-            
-            // Return a dummy validated JWT
-            // Note: In production, this MUST be removed
-            return new org.springframework.security.oauth2.jwt.Jwt(
-                    token, 
-                    java.time.Instant.now(), 
-                    java.time.Instant.now().plusSeconds(3600), 
-                    java.util.Map.of("alg", "none"), 
-                    claims
-            );
-        };
     }
 }

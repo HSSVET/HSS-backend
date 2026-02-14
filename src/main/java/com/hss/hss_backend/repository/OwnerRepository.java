@@ -15,13 +15,22 @@ import java.util.Optional;
 @Repository
 public interface OwnerRepository extends JpaRepository<Owner, Long> {
 
-    // Basic query methods
+    // Basic query methods (clinic-scoped)
     @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId")
     Page<Owner> findByClinicClinicId(@Param("clinicId") Long clinicId, Pageable pageable);
+
+    @Query("SELECT o FROM Owner o WHERE o.ownerId = :ownerId AND o.clinic.clinicId = :clinicId")
+    Optional<Owner> findByOwnerIdAndClinicClinicId(@Param("ownerId") Long ownerId, @Param("clinicId") Long clinicId);
 
     Optional<Owner> findByEmail(String email);
 
     Optional<Owner> findByPhone(String phone);
+
+    @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId AND o.email = :email")
+    Optional<Owner> findByClinicClinicIdAndEmail(@Param("clinicId") Long clinicId, @Param("email") String email);
+
+    @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId AND o.phone = :phone")
+    Optional<Owner> findByClinicClinicIdAndPhone(@Param("clinicId") Long clinicId, @Param("phone") String phone);
 
     List<Owner> findByFirstNameContainingIgnoreCase(String firstName);
 
@@ -35,15 +44,24 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     // Address queries
     List<Owner> findByAddressContainingIgnoreCase(String address);
 
-    // Custom queries with @Query
+    // Custom queries with @Query (clinic-scoped)
     @Query("SELECT o FROM Owner o WHERE o.firstName LIKE %:name% OR o.lastName LIKE %:name%")
     List<Owner> findByNameContaining(@Param("name") String name);
+
+    @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId AND (o.firstName LIKE %:name% OR o.lastName LIKE %:name%)")
+    List<Owner> findByClinicClinicIdAndNameContaining(@Param("clinicId") Long clinicId, @Param("name") String name);
 
     @Query("SELECT o FROM Owner o WHERE o.email LIKE %:email%")
     List<Owner> findByEmailContaining(@Param("email") String email);
 
+    @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId AND o.email LIKE %:email%")
+    List<Owner> findByClinicClinicIdAndEmailContaining(@Param("clinicId") Long clinicId, @Param("email") String email);
+
     @Query("SELECT o FROM Owner o WHERE o.phone LIKE %:phone%")
     List<Owner> findByPhoneContaining(@Param("phone") String phone);
+
+    @Query("SELECT o FROM Owner o WHERE o.clinic.clinicId = :clinicId AND o.phone LIKE %:phone%")
+    List<Owner> findByClinicClinicIdAndPhoneContaining(@Param("clinicId") Long clinicId, @Param("phone") String phone);
 
     // Owner statistics
     @Query("SELECT COUNT(o) FROM Owner o")

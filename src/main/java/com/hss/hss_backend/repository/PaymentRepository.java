@@ -13,6 +13,9 @@ import java.util.List;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
   List<Payment> findByOwner_OwnerId(Long ownerId);
 
+  @Query("SELECT p FROM Payment p WHERE p.owner.clinic.clinicId = :clinicId")
+  List<Payment> findByOwnerClinicClinicId(@Param("clinicId") Long clinicId);
+
   List<Payment> findByInvoice_InvoiceId(Long invoiceId);
 
   @Query("SELECT SUM(p.amount) FROM Payment p WHERE p.owner.ownerId = :ownerId")

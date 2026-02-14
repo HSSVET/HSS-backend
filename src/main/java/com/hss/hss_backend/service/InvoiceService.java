@@ -22,6 +22,9 @@ public interface InvoiceService {
   
   List<PaymentResponse> getAllPayments();
   PaymentResponse createPayment(Long invoiceId, PaymentResponse paymentData);
+
+  List<InvoiceResponse> getInvoicesByOwnerId(Long ownerId);
+  List<PaymentResponse> getPaymentsByOwnerId(Long ownerId);
   
   List<ServiceResponse> getAllServices();
   ServiceResponse createService(ServiceCreateRequest request);

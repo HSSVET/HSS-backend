@@ -4,6 +4,9 @@ import com.hss.hss_backend.entity.*;
 import com.hss.hss_backend.repository.HospitalizationRepository;
 import com.hss.hss_backend.repository.InvoiceRepository;
 import com.hss.hss_backend.repository.SurgeryRepository;
+import com.hss.hss_backend.security.ClinicContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,10 +34,25 @@ class InvoiceServiceImplTest {
   @InjectMocks
   private InvoiceServiceImpl invoiceService;
 
+  private static final Long CLINIC_ID = 1L;
+
+  @BeforeEach
+  void setClinicContext() {
+    ClinicContext.setClinicId(CLINIC_ID);
+  }
+
+  @AfterEach
+  void clearClinicContext() {
+    ClinicContext.clear();
+  }
+
   @Test
   void createInvoiceForSurgery_ShouldCalculateTotalCorrectly() {
     Long surgeryId = 1L;
+    Clinic clinic = new Clinic();
+    clinic.setClinicId(CLINIC_ID);
     Owner owner = new Owner();
+    owner.setClinic(clinic);
     Animal animal = new Animal();
     animal.setName("Buddy");
     animal.setOwner(owner);
