@@ -10,6 +10,8 @@ import com.hss.hss_backend.mapper.AppointmentMapper;
 import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.AppointmentRepository;
 import com.hss.hss_backend.security.ClinicContext;
+import com.hss.hss_backend.service.ReminderService;
+import com.hss.hss_backend.service.InvoiceRuleService;
 import org.springframework.security.access.AccessDeniedException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,8 @@ public class AppointmentService {
 
     private final AppointmentRepository appointmentRepository;
     private final AnimalRepository animalRepository;
+    private final ReminderService reminderService;
+    private final InvoiceRuleService invoiceRuleService;
 
     @Transactional(readOnly = true)
     public AppointmentResponse getAppointmentById(Long id) {
@@ -154,6 +158,15 @@ public class AppointmentService {
 
         Appointment savedAppointment = appointmentRepository.save(appointment);
         log.info("Appointment created successfully with ID: {}", savedAppointment.getAppointmentId());
+        
+        // Otomatik reminder oluştur
+        try {
+            reminderService.createDefaultRemindersForAppointment(savedAppointment);
+            log.info("Default reminders created for appointment ID: {}", savedAppointment.getAppointmentId());
+        } catch (Exception e) {
+            log.error("Failed to create reminders for appointment ID: {}", savedAppointment.getAppointmentId(), e);
+        }
+        
         return AppointmentMapper.toResponse(savedAppointment);
     }
 
@@ -174,11 +187,20 @@ public class AppointmentService {
         log.info("Updating appointment {} status to {}", id, status);
         Appointment appointment = appointmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Appointment", id));
-
         validateClinicAccess(appointment);
 
+        Appointment.Status oldStatus = appointment.getStatus();
         appointment.setStatus(status);
         Appointment updatedAppointment = appointmentRepository.save(appointment);
+
+        if (status == Appointment.Status.COMPLETED && oldStatus != Appointment.Status.COMPLETED) {
+            try {
+                invoiceRuleService.processRulesForAppointment(id);
+                log.info("Invoice rules processed for completed appointment {}", id);
+            } catch (Exception e) {
+                log.error("Failed to process invoice rules for appointment {}", id, e);
+            }
+        }
 
         log.info("Appointment status updated successfully");
         return AppointmentMapper.toResponse(updatedAppointment);

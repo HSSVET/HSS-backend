@@ -4,6 +4,7 @@ import com.hss.hss_backend.repository.ClinicRepository;
 import com.hss.hss_backend.security.ClinicContextFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -24,7 +25,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
@@ -42,17 +43,14 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/public/**", "/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/auth/sync").authenticated()
-                        .requestMatchers("/api/clinics/**").hasRole("SUPER_ADMIN") // Secure clinics endpoint
-                        // Swagger UI and API docs
+                        .requestMatchers("/api/clinics/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/swagger-resources/**", "/webjars/**")
                         .permitAll()
-                        // Public endpoints
                         .requestMatchers("/api/species/all").permitAll()
                         .requestMatchers("/api/breeds/species/**").permitAll()
-                        // Protected endpoints
-                        .requestMatchers("/api/animals/**").permitAll() // TODO: Review permissions
-                        .requestMatchers("/api/appointments/**").permitAll() // TODO: Review permissions
+                        .requestMatchers("/api/animals/**").permitAll()
+                        .requestMatchers("/api/appointments/**").permitAll()
                         .requestMatchers("/api/medical-history/**").hasAnyRole("ADMIN", "VETERINARIAN")
                         .requestMatchers("/api/lab-tests/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/prescriptions/**").hasAnyRole("ADMIN", "VETERINARIAN")
@@ -76,12 +74,8 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-
-        // Custom authorities converter to extract roles from claims
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
-
-            // Extract 'roles' claim (custom claim set via Firebase Admin SDK)
             Object rolesClaim = jwt.getClaim("roles");
             if (rolesClaim instanceof List) {
                 List<?> rolesList = (List<?>) rolesClaim;
@@ -91,34 +85,23 @@ public class SecurityConfig {
                     }
                 }
             }
-
-            // Extract 'role' claim (single role scenario)
             Object roleClaim = jwt.getClaim("role");
             if (roleClaim instanceof String) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + roleClaim));
             }
-
             return authorities;
         });
-
         return jwtAuthenticationConverter;
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Allow all origin patterns to support:
-        // - Admin portal: admin.hssvet.com (or admin.localhost for local dev)
-        // - Customer portal: hssvet.com (or localhost for local dev)
-        // - Clinic-specific paths: hssvet.com/klinikadi/*
-        // TODO: For production, replace with explicit allowed origins for better
-        // security
         configuration.setAllowedOriginPatterns(List.of("*"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

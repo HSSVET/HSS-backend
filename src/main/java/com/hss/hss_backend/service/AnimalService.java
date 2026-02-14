@@ -15,14 +15,15 @@ import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.BreedRepository;
 import com.hss.hss_backend.repository.OwnerRepository;
 import com.hss.hss_backend.repository.SpeciesRepository;
-import com.hss.hss_backend.security.ClinicContext; // Added import
+import com.hss.hss_backend.security.ClinicContext;
+import com.hss.hss_backend.service.VaccinationScheduleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.access.AccessDeniedException; // Added import
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Set;
@@ -37,6 +38,7 @@ public class AnimalService {
     private final OwnerRepository ownerRepository;
     private final SpeciesRepository speciesRepository;
     private final BreedRepository breedRepository;
+    private final VaccinationScheduleService vaccinationScheduleService;
 
     // Helper to validate clinic access
     private void validateClinicAccess(Animal animal) {
@@ -78,6 +80,16 @@ public class AnimalService {
         Animal savedAnimal = animalRepository.save(animal);
 
         log.info("Animal created successfully with ID: {}", savedAnimal.getAnimalId());
+        
+        // Otomatik aşı takvimi oluştur
+        try {
+            vaccinationScheduleService.generateScheduleForAnimal(savedAnimal.getAnimalId());
+            log.info("Vaccination schedule generated for animal ID: {}", savedAnimal.getAnimalId());
+        } catch (Exception e) {
+            log.error("Failed to generate vaccination schedule for animal ID: {}", savedAnimal.getAnimalId(), e);
+            // Aşı takvimi oluşturma hatası hayvan oluşturmayı engellemez
+        }
+        
         return AnimalMapper.toResponse(savedAnimal);
     }
 
