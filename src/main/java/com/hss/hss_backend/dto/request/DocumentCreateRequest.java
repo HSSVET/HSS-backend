@@ -12,6 +12,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class DocumentCreateRequest {
 
+    private Long ownerId;
+    private Long animalId;
     private String title;
     private String content;
     private Document.DocumentType documentType;

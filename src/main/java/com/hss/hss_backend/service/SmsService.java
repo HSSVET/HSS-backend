@@ -51,5 +51,15 @@ public class SmsService {
         log.info("SMS sent via Google Cloud to: {}", phoneNumber);
         return true;
     }
+
+    public boolean sendPreOperativeInstructions(String phoneNumber, String ownerName, java.time.LocalDateTime dateTime, int durationMinutes) {
+        String message = String.format("Sayın %s, randevunuz %s tarihinde, tahmini süre %d dakika. Ameliyat öncesi talimatlara uyunuz.", ownerName, dateTime, durationMinutes);
+        return sendSms(phoneNumber, message);
+    }
+
+    public boolean sendPostOperativeInstructions(String phoneNumber, String ownerName, String instructions) {
+        String message = String.format("Sayın %s, ameliyat sonrası bakım: %s", ownerName, instructions);
+        return sendSms(phoneNumber, message);
+    }
 }
 
