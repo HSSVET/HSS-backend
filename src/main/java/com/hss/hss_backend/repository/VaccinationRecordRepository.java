@@ -14,6 +14,8 @@ public interface VaccinationRecordRepository extends JpaRepository<VaccinationRe
 
     List<VaccinationRecord> findByAnimalAnimalId(Long animalId);
 
+    List<VaccinationRecord> findByAnimal_AnimalIdOrderByDateDesc(Long animalId);
+
     List<VaccinationRecord> findByVaccineVaccineId(Long vaccineId);
 
     List<VaccinationRecord> findByVaccineNameContainingIgnoreCase(String vaccineName);

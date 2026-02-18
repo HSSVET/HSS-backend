@@ -112,16 +112,36 @@ public class AnimalService {
     }
 
     @Transactional(readOnly = true)
-    public Page<AnimalResponse> getAllAnimals(Pageable pageable) {
-        log.info("Fetching all animals with pagination");
+    public Page<AnimalResponse> getAllAnimals(Pageable pageable, String status) {
+        log.info("Fetching all animals with pagination, status: {}", status);
         Long clinicId = ClinicContext.getClinicId();
         Page<Animal> animals;
 
         if (clinicId != null) {
-            animals = animalRepository.findByOwnerClinicClinicId(clinicId, pageable);
+            if (status != null && !status.trim().isEmpty()) {
+                try {
+                    Animal.AnimalStatus animalStatus = Animal.AnimalStatus.valueOf(status.toUpperCase());
+                    animals = animalRepository.findByOwnerClinicClinicIdAndStatus(clinicId, animalStatus, pageable);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid animal status: {}", status);
+                    animals = animalRepository.findByOwnerClinicClinicId(clinicId, pageable);
+                }
+            } else {
+                animals = animalRepository.findByOwnerClinicClinicId(clinicId, pageable);
+            }
         } else {
             // Fallback for super admin or non-clinic context (if any)
-            animals = animalRepository.findAll(pageable);
+            if (status != null && !status.trim().isEmpty()) {
+                try {
+                    Animal.AnimalStatus animalStatus = Animal.AnimalStatus.valueOf(status.toUpperCase());
+                    animals = animalRepository.findByStatus(animalStatus, pageable);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid animal status: {}", status);
+                    animals = animalRepository.findAll(pageable);
+                }
+            } else {
+                animals = animalRepository.findAll(pageable);
+            }
         }
         return animals.map(AnimalMapper::toResponse);
     }

@@ -51,9 +51,11 @@ public class AnimalController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
-    public ResponseEntity<Page<AnimalResponse>> getAllAnimals(Pageable pageable) {
-        log.info("Fetching all animals with pagination");
-        Page<AnimalResponse> response = animalService.getAllAnimals(pageable);
+    public ResponseEntity<Page<AnimalResponse>> getAllAnimals(
+            Pageable pageable,
+            @RequestParam(required = false) String status) {
+        log.info("Fetching all animals with pagination, status filter: {}", status);
+        Page<AnimalResponse> response = animalService.getAllAnimals(pageable, status);
         return ResponseEntity.ok(response);
     }
 

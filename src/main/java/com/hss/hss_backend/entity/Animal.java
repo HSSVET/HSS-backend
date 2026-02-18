@@ -118,6 +118,12 @@ public class Animal extends BaseEntity {
     @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<AnimalCondition> conditions;
 
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Treatment> treatments;
+
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<BehaviorNote> behaviorNotesList;
+
     @Column(name = "height")
     private Double height; // in cm
 

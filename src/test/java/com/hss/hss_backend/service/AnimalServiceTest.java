@@ -170,7 +170,7 @@ class AnimalServiceTest extends BaseIntegrationTest {
         }
 
         // When
-        Page<AnimalResponse> page = animalService.getAllAnimals(PageRequest.of(0, 10));
+        Page<AnimalResponse> page = animalService.getAllAnimals(PageRequest.of(0, 10), null);
 
         // Then
         assertThat(page.getContent()).hasSize(10);
