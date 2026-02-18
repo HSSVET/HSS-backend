@@ -141,13 +141,6 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!-- H2 Database for Unit Tests (optional) -->
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>test</scope>
-		</dependency>
-		
 		<!-- Google Cloud Dependencies -->
 		<dependency>
 			<groupId>com.google.cloud</groupId>
