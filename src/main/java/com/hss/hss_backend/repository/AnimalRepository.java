@@ -22,6 +22,11 @@ public interface AnimalRepository extends JpaRepository<Animal, Long> {
     @Query("SELECT a FROM Animal a WHERE a.owner.clinic.clinicId = :clinicId")
     Page<Animal> findByOwnerClinicClinicId(@Param("clinicId") Long clinicId, Pageable pageable);
 
+    @Query("SELECT a FROM Animal a WHERE a.owner.clinic.clinicId = :clinicId AND a.status = :status")
+    Page<Animal> findByOwnerClinicClinicIdAndStatus(@Param("clinicId") Long clinicId, @Param("status") Animal.AnimalStatus status, Pageable pageable);
+
+    Page<Animal> findByStatus(Animal.AnimalStatus status, Pageable pageable);
+
     List<Animal> findBySpeciesSpeciesId(Long speciesId);
 
     List<Animal> findByBreedBreedId(Long breedId);
