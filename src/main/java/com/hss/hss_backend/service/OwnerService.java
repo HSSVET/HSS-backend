@@ -9,18 +9,20 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface OwnerService {
-    
+
     OwnerResponse createOwner(OwnerCreateRequest request);
-    
+
     OwnerResponse getOwnerById(Long id);
-    
+
     Page<OwnerResponse> getAllOwners(Pageable pageable);
-    
+
     List<OwnerResponse> searchOwnersByName(String name);
-    
+
     List<OwnerResponse> searchOwnersByEmail(String email);
-    
+
+    com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse getFinancialSummary(Long ownerId);
+
     OwnerResponse updateOwner(Long id, OwnerUpdateRequest request);
-    
+
     void deleteOwner(Long id);
 }

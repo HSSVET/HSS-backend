@@ -48,4 +48,16 @@ public class AnimalUpdateRequest {
 
     @Size(max = 1000, message = "Notes must not exceed 1000 characters")
     private String notes;
+
+    private String status;
+
+    @Size(max = 2000, message = "Behavior notes must not exceed 2000 characters")
+    private String behaviorNotes;
+
+    private String profileImageUrl;
+
+    @DecimalMin(value = "0.0", message = "Height must be positive")
+    private Double height;
+
+    private Boolean sterilized;
 }

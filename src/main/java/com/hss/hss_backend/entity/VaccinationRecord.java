@@ -1,5 +1,6 @@
 package com.hss.hss_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -25,10 +26,12 @@ public class VaccinationRecord extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "animal_id", nullable = false)
+    @JsonIgnore
     private Animal animal;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vaccine_id", nullable = false)
+    @JsonIgnore
     private Vaccine vaccine;
 
     @Column(name = "vaccine_name", nullable = false, length = 100)
@@ -48,4 +51,34 @@ public class VaccinationRecord extends BaseEntity {
 
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    @JsonIgnore
+    private Clinic clinic;
+
+    @Column(name = "barcode", length = 100, unique = true)
+    private String barcode;
+
+    @Column(name = "serial_number", length = 100)
+    private String serialNumber;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "appointment_id")
+    @JsonIgnore
+    private Appointment appointment;
+
+    @Column(name = "pre_exam_completed")
+    @Builder.Default
+    private Boolean preExamCompleted = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "next_appointment_id")
+    @JsonIgnore
+    private Appointment nextAppointment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_product_id")
+    @JsonIgnore
+    private StockProduct stockProduct;
 }

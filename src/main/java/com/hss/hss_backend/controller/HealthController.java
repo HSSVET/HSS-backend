@@ -22,4 +22,16 @@ public class HealthController {
         response.put("version", "1.0.0");
         return ResponseEntity.ok(response);
     }
+
+    @GetMapping("/test-token")
+    public ResponseEntity<Map<String, String>> getTestToken() {
+        Map<String, String> response = new HashMap<>();
+        // Mock a JWT structure for frontend validation
+        String mockToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+                "eyJzdWIiOiJ0ZXN0LXVzZXIiLCJuYW1lIjoiVGVzdCBVc2VyIiwiaWF0IjoxNTE2MjM5MDIyfQ." +
+                "SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
+        
+        response.put("token", mockToken);
+        return ResponseEntity.ok(response);
+    }
 }

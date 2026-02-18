@@ -34,7 +34,7 @@ public class AnimalController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<AnimalResponse> getAnimalById(@PathVariable Long id) {
         log.info("Fetching animal with ID: {}", id);
         AnimalResponse response = animalService.getAnimalById(id);
@@ -42,7 +42,7 @@ public class AnimalController {
     }
 
     @GetMapping("/{id}/detail")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('OWNER')")
     public ResponseEntity<AnimalDetailResponse> getAnimalDetailById(@PathVariable Long id) {
         log.info("Fetching animal detail with ID: {}", id);
         AnimalDetailResponse response = animalService.getAnimalDetailById(id);
@@ -58,7 +58,7 @@ public class AnimalController {
     }
 
     @GetMapping("/owner/{ownerId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<List<AnimalResponse>> getAnimalsByOwnerId(@PathVariable Long ownerId) {
         log.info("Fetching animals for owner ID: {}", ownerId);
         List<AnimalResponse> response = animalService.getAnimalsByOwnerId(ownerId);
@@ -81,6 +81,14 @@ public class AnimalController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/search")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<AnimalResponse>> searchAnimals(@RequestParam String query) {
+        log.info("Searching animals with query: {}", query);
+        List<AnimalResponse> response = animalService.searchAnimals(query);
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/microchip/{microchipNo}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<AnimalResponse> getAnimalByMicrochip(@PathVariable String microchipNo) {
@@ -91,7 +99,8 @@ public class AnimalController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF')")
-    public ResponseEntity<AnimalResponse> updateAnimal(@PathVariable Long id, @Valid @RequestBody AnimalUpdateRequest request) {
+    public ResponseEntity<AnimalResponse> updateAnimal(@PathVariable Long id,
+            @Valid @RequestBody AnimalUpdateRequest request) {
         log.info("Updating animal with ID: {}", id);
         AnimalResponse response = animalService.updateAnimal(id, request);
         return ResponseEntity.ok(response);

@@ -19,6 +19,12 @@ public class OwnerResponse {
     private String phone;
     private String email;
     private String address;
+    private String type;
+    private String corporateName;
+    private String taxNo;
+    private String taxOffice;
+    private String notes;
+    private String warnings;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -28,7 +28,7 @@ public class AppointmentController {
     private final AppointmentService appointmentService;
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<AppointmentResponse> getAppointmentById(@PathVariable Long id) {
         log.info("Fetching appointment with ID: {}", id);
         AppointmentResponse response = appointmentService.getAppointmentById(id);
@@ -44,7 +44,7 @@ public class AppointmentController {
     }
 
     @GetMapping("/animal/{animalId}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByAnimalId(@PathVariable Long animalId) {
         log.info("Fetching appointments for animal ID: {}", animalId);
         List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalId(animalId);
@@ -53,7 +53,8 @@ public class AppointmentController {
 
     @GetMapping("/veterinarian/{veterinarianId}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
-    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByVeterinarianId(@PathVariable Long veterinarianId) {
+    public ResponseEntity<List<AppointmentResponse>> getAppointmentsByVeterinarianId(
+            @PathVariable Long veterinarianId) {
         log.info("Fetching appointments for veterinarian ID: {}", veterinarianId);
         List<AppointmentResponse> response = appointmentService.getAppointmentsByVeterinarianId(veterinarianId);
         return ResponseEntity.ok(response);
@@ -62,21 +63,35 @@ public class AppointmentController {
     @GetMapping("/date-range")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByDateRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
-        log.info("Fetching appointments between {} and {}", startDateTime, endDateTime);
-        List<AppointmentResponse> response = appointmentService.getAppointmentsByDateRange(startDateTime, endDateTime);
+            @RequestParam(name = "startDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
+            @RequestParam(name = "startDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTimeAlias,
+            @RequestParam(name = "endDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime,
+            @RequestParam(name = "endDateTime", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTimeAlias) {
+
+        LocalDateTime finalStart = startDateTime != null ? startDateTime : startDateTimeAlias;
+        LocalDateTime finalEnd = endDateTime != null ? endDateTime : endDateTimeAlias;
+
+        if (finalStart == null || finalEnd == null) {
+            // fallback logic or throw exception, but let's assume one pair is present.
+            // Actually, cleaner is just to rename the params to what frontend sends, or
+            // support both via alias.
+            throw new IllegalArgumentException("StartDate and EndDate are required");
+        }
+
+        log.info("Fetching appointments between {} and {}", finalStart, finalEnd);
+        List<AppointmentResponse> response = appointmentService.getAppointmentsByDateRange(finalStart, finalEnd);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/animal/{animalId}/date-range")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<List<AppointmentResponse>> getAppointmentsByAnimalAndDateRange(
             @PathVariable Long animalId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDateTime,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDateTime) {
         log.info("Fetching appointments for animal {} between {} and {}", animalId, startDateTime, endDateTime);
-        List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalAndDateRange(animalId, startDateTime, endDateTime);
+        List<AppointmentResponse> response = appointmentService.getAppointmentsByAnimalAndDateRange(animalId,
+                startDateTime, endDateTime);
         return ResponseEntity.ok(response);
     }
 
@@ -97,8 +112,26 @@ public class AppointmentController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping
+    @GetMapping("/today")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<AppointmentResponse>> getTodayAppointments() {
+        log.info("Fetching today's appointments");
+        List<AppointmentResponse> response = appointmentService.getTodayAppointments();
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/calendar")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<AppointmentResponse>> getCalendarAppointments(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        log.info("Fetching calendar appointments between {} and {}", startDate, endDate);
+        List<AppointmentResponse> response = appointmentService.getAppointmentsByDateRange(startDate, endDate);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST') or hasRole('OWNER')")
     public ResponseEntity<AppointmentResponse> createAppointment(@Valid @RequestBody AppointmentCreateRequest request) {
         log.info("Creating appointment for animal ID: {} at {}", request.getAnimalId(), request.getDateTime());
         AppointmentResponse response = appointmentService.createAppointment(request);
@@ -108,7 +141,7 @@ public class AppointmentController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<AppointmentResponse> updateAppointmentStatus(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @RequestParam Appointment.Status status) {
         log.info("Updating appointment {} status to {}", id, status);
         AppointmentResponse response = appointmentService.updateAppointmentStatus(id, status);

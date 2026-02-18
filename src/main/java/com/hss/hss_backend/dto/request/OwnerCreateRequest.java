@@ -30,4 +30,19 @@ public class OwnerCreateRequest {
 
     @Size(max = 500, message = "Address must not exceed 500 characters")
     private String address;
+
+    private String type; // INDIVIDUAL or CORPORATE
+
+    @Size(max = 200, message = "Corporate name must not exceed 200 characters")
+    private String corporateName;
+
+    @Size(max = 50, message = "Tax number must not exceed 50 characters")
+    private String taxNo;
+
+    @Size(max = 100, message = "Tax office must not exceed 100 characters")
+    private String taxOffice;
+
+    private String notes;
+
+    private String warnings;
 }

@@ -2,7 +2,6 @@ package com.hss.hss_backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -12,7 +11,6 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "document")
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
@@ -39,7 +37,6 @@ public class Document extends BaseEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "document_type", length = 50)
-    @Builder.Default
     private DocumentType documentType = DocumentType.GENERAL;
 
     @Column(name = "file_url", columnDefinition = "TEXT")
@@ -58,7 +55,6 @@ public class Document extends BaseEntity {
     private LocalDate date;
 
     @Column(name = "is_archived")
-    @Builder.Default
     private Boolean isArchived = false;
 
     public enum DocumentType {

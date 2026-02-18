@@ -20,10 +20,9 @@ public class LabTestMapper {
                 .testName(labTest.getTestName())
                 .date(labTest.getDate())
                 .status(labTest.getStatus().name())
-                .results(labTest.getLabResults() != null ? 
-                        labTest.getLabResults().stream()
-                                .map(LabTestMapper::toResultResponse)
-                                .collect(Collectors.toList()) : null)
+                .results(labTest.getLabResults() != null ? labTest.getLabResults().stream()
+                        .map(LabTestMapper::toResultResponse)
+                        .collect(Collectors.toList()) : null)
                 .createdAt(labTest.getCreatedAt())
                 .updatedAt(labTest.getUpdatedAt())
                 .build();
@@ -38,6 +37,7 @@ public class LabTestMapper {
                 .unit(labResult.getUnit())
                 .normalRange(labResult.getNormalRange())
                 .interpretation(labResult.getInterpretation())
+                .fileUrl(labResult.getFileUrl())
                 .createdAt(labResult.getCreatedAt())
                 .updatedAt(labResult.getUpdatedAt())
                 .build();

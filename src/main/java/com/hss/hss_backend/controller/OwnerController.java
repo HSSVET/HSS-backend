@@ -2,7 +2,10 @@ package com.hss.hss_backend.controller;
 
 import com.hss.hss_backend.dto.request.OwnerCreateRequest;
 import com.hss.hss_backend.dto.request.OwnerUpdateRequest;
+import com.hss.hss_backend.dto.response.InvoiceResponse;
 import com.hss.hss_backend.dto.response.OwnerResponse;
+import com.hss.hss_backend.dto.response.PaymentResponse;
+import com.hss.hss_backend.service.InvoiceService;
 import com.hss.hss_backend.service.OwnerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,7 @@ import java.util.List;
 public class OwnerController {
 
     private final OwnerService ownerService;
+    private final InvoiceService invoiceService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
@@ -40,8 +44,29 @@ public class OwnerController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping
+    @GetMapping("/{id}/financial-summary")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<com.hss.hss_backend.dto.response.OwnerFinancialSummaryResponse> getFinancialSummary(
+            @PathVariable Long id) {
+        log.info("Fetching financial summary for owner ID: {}", id);
+        return ResponseEntity.ok(ownerService.getFinancialSummary(id));
+    }
+
+    @GetMapping("/{id}/invoices")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<InvoiceResponse>> getInvoicesByOwnerId(@PathVariable Long id) {
+        log.info("Fetching invoices for owner ID: {}", id);
+        return ResponseEntity.ok(invoiceService.getInvoicesByOwnerId(id));
+    }
+
+    @GetMapping("/{id}/payments")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
+    public ResponseEntity<List<PaymentResponse>> getPaymentsByOwnerId(@PathVariable Long id) {
+        log.info("Fetching payments for owner ID: {}", id);
+        return ResponseEntity.ok(invoiceService.getPaymentsByOwnerId(id));
+    }
+
+    @GetMapping
     public ResponseEntity<Page<OwnerResponse>> getAllOwners(Pageable pageable) {
         log.info("Fetching all owners with pagination");
         Page<OwnerResponse> response = ownerService.getAllOwners(pageable);
@@ -66,7 +91,8 @@ public class OwnerController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
-    public ResponseEntity<OwnerResponse> updateOwner(@PathVariable Long id, @Valid @RequestBody OwnerUpdateRequest request) {
+    public ResponseEntity<OwnerResponse> updateOwner(@PathVariable Long id,
+            @Valid @RequestBody OwnerUpdateRequest request) {
         log.info("Updating owner with ID: {}", id);
         OwnerResponse response = ownerService.updateOwner(id, request);
         return ResponseEntity.ok(response);

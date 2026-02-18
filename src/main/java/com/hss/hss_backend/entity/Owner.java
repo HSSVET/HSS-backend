@@ -16,7 +16,9 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@EqualsAndHashCode(callSuper = false)
+@org.hibernate.annotations.SQLDelete(sql = "UPDATE owner SET is_deleted = true WHERE owner_id = ?")
+@org.hibernate.annotations.SQLRestriction("is_deleted = false")
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Owner extends BaseEntity {
 
     @Id
@@ -48,6 +50,29 @@ public class Owner extends BaseEntity {
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 20)
+    @Builder.Default
+    private OwnerType type = OwnerType.INDIVIDUAL;
+
+    @Column(name = "is_deleted", nullable = false)
+    private boolean deleted = false;
+
+    @Column(name = "corporate_name", length = 200)
+    private String corporateName;
+
+    @Column(name = "tax_no", length = 50)
+    private String taxNo;
+
+    @Column(name = "tax_office", length = 100)
+    private String taxOffice;
+
+    @Column(name = "notes", columnDefinition = "TEXT")
+    private String notes;
+
+    @Column(name = "warnings", columnDefinition = "TEXT")
+    private String warnings;
+
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Animal> animals;
 
@@ -59,4 +84,12 @@ public class Owner extends BaseEntity {
 
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Communication> communications;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    private Clinic clinic;
+
+    public enum OwnerType {
+        INDIVIDUAL, CORPORATE
+    }
 }

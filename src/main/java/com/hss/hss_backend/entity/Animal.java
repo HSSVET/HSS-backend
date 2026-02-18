@@ -1,5 +1,6 @@
 package com.hss.hss_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -19,12 +20,18 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = false)
+@org.hibernate.annotations.Filter(name = "clinicFilter", condition = "clinic_id = :clinicId")
 public class Animal extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "animal_id")
     private Long animalId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "clinic_id", nullable = false)
+    @JsonIgnore
+    private Clinic clinic;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -102,7 +109,41 @@ public class Animal extends BaseEntity {
     @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Document> documents;
 
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Surgery> surgeries;
+
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Hospitalization> hospitalizations;
+
+    @OneToMany(mappedBy = "animal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<AnimalCondition> conditions;
+
+    @Column(name = "height")
+    private Double height; // in cm
+
+    @Column(name = "sterilized")
+    private Boolean sterilized;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20)
+    @Builder.Default
+    private AnimalStatus status = AnimalStatus.ACTIVE;
+
+    @Size(max = 2000, message = "Behavior notes must not exceed 2000 characters")
+    @Column(name = "behavior_notes", columnDefinition = "TEXT")
+    private String behaviorNotes;
+
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     public enum Gender {
         MALE, FEMALE, UNKNOWN
+    }
+
+    public enum AnimalStatus {
+        ACTIVE,
+        FOLLOW_UP,
+        DECEASED,
+        ARCHIVED
     }
 }

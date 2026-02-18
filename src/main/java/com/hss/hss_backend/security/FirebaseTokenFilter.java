@@ -58,14 +58,29 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
 
             // Extract role from custom claims
             Map<String, Object> claims = decodedToken.getClaims();
-            String role = (String) claims.getOrDefault("role", "");
-            log.debug("Extracted role from token: {}", role);
-
-            // Create authorities (Spring Security expects ROLE_ prefix for hasRole()
-            // checks)
+            
+            // Try to extract roles - can be either "role", "roles" array, or from nested claims
             List<SimpleGrantedAuthority> authorities = Collections.emptyList();
-            if (StringUtils.hasText(role)) {
-                authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+            
+            // Check for "roles" array (from custom claims)
+            Object rolesObj = claims.get("roles");
+            if (rolesObj instanceof List) {
+                @SuppressWarnings("unchecked")
+                List<String> rolesList = (List<String>) rolesObj;
+                authorities = rolesList.stream()
+                        .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                        .toList();
+                log.debug("Extracted roles from token: {}", rolesList);
+            } 
+            // Check for single "role" string
+            else {
+                String role = (String) claims.getOrDefault("role", "");
+                if (StringUtils.hasText(role)) {
+                    authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                    log.debug("Extracted role from token: {}", role);
+                } else {
+                    log.debug("No role found in token claims");
+                }
             }
 
             // Create authentication object
@@ -76,8 +91,8 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
 
             // Set authentication in security context
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            log.debug("Authentication set in security context for user: {} with role: {}",
-                    decodedToken.getUid(), role);
+            log.debug("Authentication set in security context for user: {} with authorities: {}",
+                    decodedToken.getUid(), authorities);
 
         } catch (FirebaseAuthException e) {
             log.debug("Token is not a valid Firebase token, trying JWT token: {}", e.getMessage());

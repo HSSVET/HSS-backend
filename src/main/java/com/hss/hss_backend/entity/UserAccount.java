@@ -24,16 +24,20 @@ public class UserAccount extends BaseEntity {
     private Long userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "staff_id", nullable = false)
+    @JoinColumn(name = "staff_id")
     private Staff staff;
 
-    @Column(name = "username", nullable = false, length = 50, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private Owner owner;
+
+    @Column(name = "username", nullable = true, length = 50, unique = true)
     private String username;
 
     @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
-    @Column(name = "firebase_uid", length = 128, unique = true)
+    @Column(name = "firebase_uid", length = 128, unique = true, nullable = false)
     private String firebaseUid;
 
     @Column(name = "email", nullable = false, length = 100, unique = true)

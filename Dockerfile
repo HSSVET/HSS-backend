@@ -21,14 +21,16 @@ COPY src src
 # Build the application (skip tests for faster build)
 RUN ./mvnw clean package -DskipTests -T 1C
 
-# Runtime stage - Use standard Ubuntu-based image for better native library support
+# Runtime stage
 FROM eclipse-temurin:21-jre
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install necessary packages (curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app user
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+RUN groupadd -g 1001 appgroup && \
+    useradd -u 1001 -g appgroup -M -s /usr/sbin/nologin appuser
 
 # Set working directory
 WORKDIR /app
@@ -45,10 +47,9 @@ USER appuser
 # Expose port (Cloud Run will set PORT environment variable)
 EXPOSE 8080
 
-# Health check (use PORT environment variable)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+# Health check (use PORT environment variable) - Cloud Run için optimize edildi
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
 
 # Run the application with proper JVM settings for Cloud Run
-# Added JVM flags to prevent native library issues
-ENTRYPOINT ["sh", "-c", "echo 'Starting HSS Backend Application...' && echo 'Port: ${PORT:-8080}' && echo 'Java version:' && java -version && echo 'Starting application...' && java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Xmx512m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-dev} -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-dev} -jar app.jar"]

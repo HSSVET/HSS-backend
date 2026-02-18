@@ -30,6 +30,12 @@ public class AnimalMapper {
                 .allergies(request.getAllergies())
                 .chronicDiseases(request.getChronicDiseases())
                 .notes(request.getNotes())
+                .status(request.getStatus() != null ? Animal.AnimalStatus.valueOf(request.getStatus())
+                        : Animal.AnimalStatus.ACTIVE)
+                .behaviorNotes(request.getBehaviorNotes())
+                .profileImageUrl(request.getProfileImageUrl())
+                .height(request.getHeight())
+                .sterilized(request.getSterilized())
                 .build();
     }
 
@@ -45,6 +51,13 @@ public class AnimalMapper {
         animal.setAllergies(request.getAllergies());
         animal.setChronicDiseases(request.getChronicDiseases());
         animal.setNotes(request.getNotes());
+        if (request.getStatus() != null) {
+            animal.setStatus(Animal.AnimalStatus.valueOf(request.getStatus()));
+        }
+        animal.setBehaviorNotes(request.getBehaviorNotes());
+        animal.setProfileImageUrl(request.getProfileImageUrl());
+        animal.setHeight(request.getHeight());
+        animal.setSterilized(request.getSterilized());
     }
 
     public static AnimalResponse toResponse(Animal animal) {
@@ -65,8 +78,26 @@ public class AnimalMapper {
                 .allergies(animal.getAllergies())
                 .chronicDiseases(animal.getChronicDiseases())
                 .notes(animal.getNotes())
+                .status(animal.getStatus() != null ? animal.getStatus().name() : null)
+                .behaviorNotes(animal.getBehaviorNotes())
+                .profileImageUrl(animal.getProfileImageUrl())
                 .createdAt(animal.getCreatedAt())
                 .updatedAt(animal.getUpdatedAt())
+                .height(animal.getHeight())
+                .sterilized(animal.getSterilized())
+                .conditions(animal.getConditions() != null ? animal.getConditions().stream()
+                        .map(c -> com.hss.hss_backend.dto.AnimalConditionDTO.builder()
+                                .id(c.getId())
+                                .animalId(c.getAnimal().getAnimalId())
+                                .type(c.getType().name())
+                                .name(c.getName())
+                                .severity(c.getSeverity() != null ? c.getSeverity().name() : null)
+                                .diagnosisDate(c.getDiagnosisDate())
+                                .diagnosedBy(c.getDiagnosedBy())
+                                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                                .notes(c.getNotes())
+                                .build())
+                        .collect(Collectors.toList()) : null)
                 .build();
     }
 
@@ -90,8 +121,26 @@ public class AnimalMapper {
                 .allergies(animal.getAllergies())
                 .chronicDiseases(animal.getChronicDiseases())
                 .notes(animal.getNotes())
+                .status(animal.getStatus() != null ? animal.getStatus().name() : null)
+                .behaviorNotes(animal.getBehaviorNotes())
+                .profileImageUrl(animal.getProfileImageUrl())
                 .createdAt(animal.getCreatedAt())
                 .updatedAt(animal.getUpdatedAt())
+                .height(animal.getHeight())
+                .sterilized(animal.getSterilized())
+                .conditions(animal.getConditions() != null ? animal.getConditions().stream()
+                        .map(c -> com.hss.hss_backend.dto.AnimalConditionDTO.builder()
+                                .id(c.getId())
+                                .animalId(c.getAnimal().getAnimalId())
+                                .type(c.getType().name())
+                                .name(c.getName())
+                                .severity(c.getSeverity() != null ? c.getSeverity().name() : null)
+                                .diagnosisDate(c.getDiagnosisDate())
+                                .diagnosedBy(c.getDiagnosedBy())
+                                .status(c.getStatus() != null ? c.getStatus().name() : null)
+                                .notes(c.getNotes())
+                                .build())
+                        .collect(Collectors.toList()) : null)
                 .build();
     }
 

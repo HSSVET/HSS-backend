@@ -49,7 +49,6 @@ public class SpeciesController {
     }
 
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('VETERINARIAN') or hasRole('STAFF') or hasRole('RECEPTIONIST')")
     public ResponseEntity<List<SpeciesResponse>> getAllSpeciesList() {
         log.info("Fetching all species as list");
         List<SpeciesResponse> response = speciesService.getAllSpeciesList();

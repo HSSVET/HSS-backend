@@ -34,9 +34,15 @@ public class AnimalDetailResponse {
     private String allergies;
     private String chronicDiseases;
     private String notes;
+    private String status;
+    private String behaviorNotes;
+    private String profileImageUrl;
+    private Double height;
+    private Boolean sterilized;
+    private java.util.List<com.hss.hss_backend.dto.AnimalConditionDTO> conditions;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-    
+
     // Additional details
     private List<AppointmentResponse> recentAppointments;
     private List<MedicalHistoryResponse> recentMedicalHistory;

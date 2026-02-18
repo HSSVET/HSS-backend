@@ -15,6 +15,7 @@ import com.hss.hss_backend.repository.AnimalRepository;
 import com.hss.hss_backend.repository.BreedRepository;
 import com.hss.hss_backend.repository.OwnerRepository;
 import com.hss.hss_backend.repository.SpeciesRepository;
+import com.hss.hss_backend.security.ClinicContext;
 import com.hss.hss_backend.service.VaccinationScheduleService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +23,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +39,16 @@ public class AnimalService {
     private final SpeciesRepository speciesRepository;
     private final BreedRepository breedRepository;
     private final VaccinationScheduleService vaccinationScheduleService;
+
+    // Helper to validate clinic access
+    private void validateClinicAccess(Animal animal) {
+        Long currentClinicId = ClinicContext.getClinicId();
+        if (currentClinicId != null && animal.getOwner().getClinic() != null) {
+            if (!currentClinicId.equals(animal.getOwner().getClinic().getClinicId())) {
+                throw new AccessDeniedException("You do not have permission to access this animal.");
+            }
+        }
+    }
 
     public AnimalResponse createAnimal(AnimalCreateRequest request) {
         log.info("Creating animal with name: {}", request.getName());
@@ -85,6 +98,7 @@ public class AnimalService {
         log.info("Fetching animal with ID: {}", id);
         Animal animal = animalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", id));
+        validateClinicAccess(animal); // Validate access
         return AnimalMapper.toResponse(animal);
     }
 
@@ -93,13 +107,22 @@ public class AnimalService {
         log.info("Fetching animal detail with ID: {}", id);
         Animal animal = animalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", id));
+        validateClinicAccess(animal); // Validate access
         return AnimalMapper.toDetailResponse(animal);
     }
 
     @Transactional(readOnly = true)
     public Page<AnimalResponse> getAllAnimals(Pageable pageable) {
         log.info("Fetching all animals with pagination");
-        Page<Animal> animals = animalRepository.findAll(pageable);
+        Long clinicId = ClinicContext.getClinicId();
+        Page<Animal> animals;
+
+        if (clinicId != null) {
+            animals = animalRepository.findByOwnerClinicClinicId(clinicId, pageable);
+        } else {
+            // Fallback for super admin or non-clinic context (if any)
+            animals = animalRepository.findAll(pageable);
+        }
         return animals.map(AnimalMapper::toResponse);
     }
 
@@ -125,6 +148,45 @@ public class AnimalService {
     }
 
     @Transactional(readOnly = true)
+    public List<AnimalResponse> searchAnimals(String query) {
+        log.info("Searching animals with query: {}", query);
+        
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        
+        String searchTerm = query.trim();
+        
+        // Search by animal name
+        List<Animal> animalsByName = animalRepository.findByNameContainingIgnoreCase(searchTerm);
+        
+        // Search by owner name
+        List<Animal> animalsByOwner = animalRepository.findByOwnerNameContaining(searchTerm);
+        
+        // Search by microchip (exact match or contains)
+        List<Animal> animalsByMicrochip = animalRepository.findByMicrochipNo(searchTerm)
+                .map(List::of)
+                .orElse(List.of());
+        
+        // Combine results and remove duplicates
+        Set<Animal> uniqueAnimals = new java.util.HashSet<>();
+        uniqueAnimals.addAll(animalsByName);
+        uniqueAnimals.addAll(animalsByOwner);
+        uniqueAnimals.addAll(animalsByMicrochip);
+        
+        // Filter by clinic context
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId != null) {
+            uniqueAnimals.removeIf(animal -> 
+                animal.getOwner().getClinic() == null || 
+                !clinicId.equals(animal.getOwner().getClinic().getClinicId())
+            );
+        }
+        
+        return AnimalMapper.toResponseList(new java.util.ArrayList<>(uniqueAnimals));
+    }
+
+    @Transactional(readOnly = true)
     public AnimalResponse getAnimalByMicrochip(String microchipNo) {
         log.info("Fetching animal by microchip: {}", microchipNo);
         Animal animal = animalRepository.findByMicrochipNo(microchipNo)
@@ -136,6 +198,7 @@ public class AnimalService {
         log.info("Updating animal with ID: {}", id);
         Animal animal = animalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", id));
+        validateClinicAccess(animal); // Validate access
 
         // Validate species exists
         Species species = speciesRepository.findById(request.getSpeciesId())
@@ -151,8 +214,8 @@ public class AnimalService {
 
         // Check for duplicate microchip number (excluding current animal)
         if (request.getMicrochipNo() != null && !request.getMicrochipNo().trim().isEmpty()) {
-            if (animalRepository.existsByMicrochipNo(request.getMicrochipNo()) && 
-                !request.getMicrochipNo().equals(animal.getMicrochipNo())) {
+            if (animalRepository.existsByMicrochipNo(request.getMicrochipNo()) &&
+                    !request.getMicrochipNo().equals(animal.getMicrochipNo())) {
                 throw new DuplicateResourceException("Animal", "microchipNo", request.getMicrochipNo());
             }
         }
@@ -168,6 +231,7 @@ public class AnimalService {
         log.info("Deleting animal with ID: {}", id);
         Animal animal = animalRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Animal", id));
+        validateClinicAccess(animal); // Validate access
         animalRepository.delete(animal);
         log.info("Animal deleted successfully with ID: {}", id);
     }
