@@ -21,7 +21,7 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: true
+    validate-on-migrate: false
   
   # GCP Cloud SQL Configuration (Default - will be overridden by profiles)
   datasource:
@@ -61,13 +61,14 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-project-id}
+          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-cloud-473511}
 
 # Firebase Configuration
 firebase:
   enabled: true
-  project-id: ${FIREBASE_PROJECT_ID:hss-project-id}
-  service-account-key: ${FIREBASE_SERVICE_ACCOUNT_KEY:}
+  project-id: ${FIREBASE_PROJECT_ID:hss-cloud-473511}
+  # Cloud Run'da oluşturduğun Mount Path + dosya adı:
+  service-account-key: file:/firebase-key-volume/key.json
 
 # Server Configuration
 server:

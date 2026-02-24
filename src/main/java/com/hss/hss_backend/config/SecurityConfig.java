@@ -57,7 +57,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/vaccinations/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/invoices/**").hasAnyRole("ADMIN", "RECEPTIONIST")
                         .requestMatchers("/api/inventory/**").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/stock/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/files/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/dashboard/**")
                         .hasAnyRole("ADMIN", "VETERINARIAN", "STAFF", "RECEPTIONIST")
