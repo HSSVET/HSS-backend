@@ -39,11 +39,12 @@ spring:
   
   # Flyway Configuration for Production
   flyway:
-    enabled: false
+    enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
     fail-on-missing-locations: false
+    repair-on-migrate: true
   
   # Security Configuration for Production
   security:

@@ -52,7 +52,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
 
 # Run the application with proper JVM settings for Cloud Run
-# NOTE: Cloud Run env var precedence / revision config may still result in a "prod"
-# profile being activated. For now we hard-pin the active profile to "dev" to
-# ensure startup succeeds while we align prod DB & Flyway state.
-ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=dev -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-dev} -jar app.jar"]
