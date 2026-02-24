@@ -26,11 +26,24 @@ public class AuthSyncController {
 
   @PostMapping("/sync")
   public ResponseEntity<Map<String, Object>> syncUser(Authentication authentication) {
-    Jwt jwt = (Jwt) authentication.getPrincipal();
-    String firebaseUid = jwt.getSubject();
-    String email = jwt.getClaimAsString("email");
-    String name = jwt.getClaimAsString("name");
-    String givenRole = jwt.getClaimAsString("role");
+    String firebaseUid = authentication.getName(); // Firebase UID
+    
+    // Get claims from authentication details if available
+    String email = null;
+    String name = null;
+    String givenRole = null;
+    
+    // Try to extract from JWT if it's a Jwt type
+    if (authentication.getPrincipal() instanceof Jwt) {
+      Jwt jwt = (Jwt) authentication.getPrincipal();
+      firebaseUid = jwt.getSubject();
+      email = jwt.getClaimAsString("email");
+      name = jwt.getClaimAsString("name");
+      givenRole = jwt.getClaimAsString("role");
+    } else {
+      // If it's from Firebase (String principal), use the name as UID
+      firebaseUid = (String) authentication.getPrincipal();
+    }
 
     UserAccount user = userService.syncUser(firebaseUid, email, name, givenRole);
 

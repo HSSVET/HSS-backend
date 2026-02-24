@@ -1,44 +1,73 @@
 spring:
-  cloud:
-    gcp:
-      storage:
-        enabled: false
-        bucket-name: test-bucket
-        credentials:
-          location: classpath:test-service-account.json
-      sql:
-        enabled: false  # Disable Cloud SQL for tests
-  flyway:
-    enabled: false
-  security:
-    oauth2:
-      client:
-        registration:
-          keycloak:
-            client-id: test-client
-            client-secret: test-secret
-            scope: openid,profile,email
-        provider:
-          keycloak:
-            issuer-uri: http://localhost:8080/auth/realms/test
+  application:
+    name: hss-backend-test
+  
+  # Test Database Configuration (TestContainers will override this)
   datasource:
-    url: jdbc:h2:mem:testdb
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: password
+    url: jdbc:postgresql://localhost:5432/hss_test
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+  
+  # JPA Configuration for Tests
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: false
+      ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.H2Dialect
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+    open-in-view: false
+  
+  # Flyway Configuration for Tests
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: false
+  
+  # Disable Cloud SQL for tests
+  cloud:
+    gcp:
+      sql:
+        enabled: false
+      storage:
+        bucket-name: test-bucket
+  
+  # Security Configuration for Tests
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/test-issuer
 
+# Firebase Configuration for Tests (disabled)
+firebase:
+  project-id: test-project
+  service-account-key: /test-key.json
+
+# Server Configuration
+server:
+  port: 0  # Random port for tests
+
+# Logging Configuration for Tests
 logging:
   level:
     com.hss.hss_backend: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
+    org.springframework.test: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.testcontainers: INFO
+    org.testcontainers.postgresql: DEBUG
 
-server:
-  port: 0  # Random port for tests
+# Test-specific configurations
+test:
+  database:
+    cleanup: true
+    seed-data: true
+

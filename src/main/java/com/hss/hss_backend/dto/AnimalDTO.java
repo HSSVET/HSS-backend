@@ -36,9 +36,6 @@ public class AnimalDTO {
     private LocalDate lastCheckup;
     private LocalDate nextVaccine;
     private String healthStatus;
-    private Double height;
-    private Boolean sterilized;
-    private java.util.List<AnimalConditionDTO> conditions;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -50,16 +50,16 @@ public class OwnerServiceImpl implements OwnerService {
         Clinic clinic = clinicRepository.findById(clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Clinic not found with ID: " + clinicId));
 
-        // Check for duplicate email
+        // Check for duplicate email (within same clinic)
         if (request.getEmail() != null && !request.getEmail().isEmpty()) {
-            if (ownerRepository.findByEmail(request.getEmail()).isPresent()) {
+            if (ownerRepository.findByClinicClinicIdAndEmail(clinicId, request.getEmail()).isPresent()) {
                 throw new DuplicateResourceException("Owner with email '" + request.getEmail() + "' already exists");
             }
         }
 
-        // Check for duplicate phone
+        // Check for duplicate phone (within same clinic)
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
-            if (ownerRepository.findByPhone(request.getPhone()).isPresent()) {
+            if (ownerRepository.findByClinicClinicIdAndPhone(clinicId, request.getPhone()).isPresent()) {
                 throw new DuplicateResourceException("Owner with phone '" + request.getPhone() + "' already exists");
             }
         }
@@ -77,7 +77,11 @@ public class OwnerServiceImpl implements OwnerService {
     @Transactional(readOnly = true)
     public OwnerResponse getOwnerById(Long id) {
         log.info("Fetching owner with ID: {}", id);
-        Owner owner = ownerRepository.findById(id)
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot fetch owner.");
+        }
+        Owner owner = ownerRepository.findByOwnerIdAndClinicClinicId(id, clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + id));
         return OwnerMapper.toResponse(owner);
     }
@@ -85,14 +89,12 @@ public class OwnerServiceImpl implements OwnerService {
     @Override
     @Transactional(readOnly = true)
     public Page<OwnerResponse> getAllOwners(Pageable pageable) {
-        log.info("Fetching all owners with pagination");
-        // Filter is usually applied automatically via Aspect or Filter definition on
-        // Entity but here we use repository basic methods if needed
-        // Assuming @Filter def on Owner entity handles this via Hibernate session
-        // aspect or we rely on Spring Data JPA to filter
-        // Ideally we should double check if the filter is active. For now standard
-        // findAll respecting the aspect.
-        Page<Owner> owners = ownerRepository.findAll(pageable);
+        log.info("Fetching all owners with pagination for current clinic");
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot list owners.");
+        }
+        Page<Owner> owners = ownerRepository.findByClinicClinicId(clinicId, pageable);
         return owners.map(OwnerMapper::toResponse);
     }
 
@@ -100,7 +102,11 @@ public class OwnerServiceImpl implements OwnerService {
     @Transactional(readOnly = true)
     public List<OwnerResponse> searchOwnersByName(String name) {
         log.info("Searching owners by name: {}", name);
-        List<Owner> owners = ownerRepository.findByNameContaining(name);
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot search owners.");
+        }
+        List<Owner> owners = ownerRepository.findByClinicClinicIdAndNameContaining(clinicId, name);
         return OwnerMapper.toResponseList(owners);
     }
 
@@ -108,30 +114,40 @@ public class OwnerServiceImpl implements OwnerService {
     @Transactional(readOnly = true)
     public List<OwnerResponse> searchOwnersByEmail(String email) {
         log.info("Searching owners by email: {}", email);
-        List<Owner> owners = ownerRepository.findByEmailContaining(email);
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot search owners.");
+        }
+        List<Owner> owners = ownerRepository.findByClinicClinicIdAndEmailContaining(clinicId, email);
         return OwnerMapper.toResponseList(owners);
     }
 
     @Override
     public OwnerFinancialSummaryResponse getFinancialSummary(Long ownerId) {
         log.info("Calculating financial summary for owner ID: {}", ownerId);
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot get financial summary.");
+        }
+        Owner owner = ownerRepository.findByOwnerIdAndClinicClinicId(ownerId, clinicId)
+                .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + ownerId));
 
-        BigDecimal totalInvoiced = invoiceRepository.getTotalAmountByOwnerId(ownerId);
+        BigDecimal totalInvoiced = invoiceRepository.getTotalAmountByOwnerId(owner.getOwnerId());
         if (totalInvoiced == null)
             totalInvoiced = BigDecimal.ZERO;
 
-        BigDecimal totalPaid = paymentRepository.sumAmountByOwner_OwnerId(ownerId);
+        BigDecimal totalPaid = paymentRepository.sumAmountByOwner_OwnerId(owner.getOwnerId());
         if (totalPaid == null)
             totalPaid = BigDecimal.ZERO;
 
         BigDecimal balance = totalInvoiced.subtract(totalPaid);
 
-        BigDecimal overdueAmount = invoiceRepository.getOverdueAmountByOwnerId(ownerId);
+        BigDecimal overdueAmount = invoiceRepository.getOverdueAmountByOwnerId(owner.getOwnerId());
         if (overdueAmount == null)
             overdueAmount = BigDecimal.ZERO;
 
         return OwnerFinancialSummaryResponse.builder()
-                .ownerId(ownerId)
+                .ownerId(owner.getOwnerId())
                 .totalInvoiced(totalInvoiced)
                 .totalPaid(totalPaid)
                 .balance(balance)
@@ -142,13 +158,16 @@ public class OwnerServiceImpl implements OwnerService {
     @Override
     public OwnerResponse updateOwner(Long id, OwnerUpdateRequest request) {
         log.info("Updating owner with ID: {}", id);
-
-        Owner owner = ownerRepository.findById(id)
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot update owner.");
+        }
+        Owner owner = ownerRepository.findByOwnerIdAndClinicClinicId(id, clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + id));
 
-        // Check for duplicate email if it's being updated
+        // Check for duplicate email if it's being updated (within same clinic)
         if (request.getEmail() != null && !request.getEmail().isEmpty()) {
-            ownerRepository.findByEmail(request.getEmail())
+            ownerRepository.findByClinicClinicIdAndEmail(clinicId, request.getEmail())
                     .ifPresent(existingOwner -> {
                         if (!existingOwner.getOwnerId().equals(id)) {
                             throw new DuplicateResourceException(
@@ -157,9 +176,9 @@ public class OwnerServiceImpl implements OwnerService {
                     });
         }
 
-        // Check for duplicate phone if it's being updated
+        // Check for duplicate phone if it's being updated (within same clinic)
         if (request.getPhone() != null && !request.getPhone().isEmpty()) {
-            ownerRepository.findByPhone(request.getPhone())
+            ownerRepository.findByClinicClinicIdAndPhone(clinicId, request.getPhone())
                     .ifPresent(existingOwner -> {
                         if (!existingOwner.getOwnerId().equals(id)) {
                             throw new DuplicateResourceException(
@@ -178,8 +197,11 @@ public class OwnerServiceImpl implements OwnerService {
     @Override
     public void deleteOwner(Long id) {
         log.info("Deleting owner with ID: {}", id);
-
-        Owner owner = ownerRepository.findById(id)
+        Long clinicId = ClinicContext.getClinicId();
+        if (clinicId == null) {
+            throw new IllegalStateException("Clinic context is missing. Cannot delete owner.");
+        }
+        Owner owner = ownerRepository.findByOwnerIdAndClinicClinicId(id, clinicId)
                 .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + id));
 
         // Note: CascadeType.ALL on 'animals' relationship in Owner entity ensures pets

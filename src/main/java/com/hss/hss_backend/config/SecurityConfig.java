@@ -1,7 +1,10 @@
 package com.hss.hss_backend.config;
 
+import com.hss.hss_backend.repository.ClinicRepository;
+import com.hss.hss_backend.security.ClinicContextFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -9,6 +12,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -21,30 +25,32 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public ClinicContextFilter clinicContextFilter(ClinicRepository clinicRepository) {
+        return new ClinicContextFilter(clinicRepository);
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http, ClinicContextFilter clinicContextFilter) throws Exception {
         http
+                .addFilterAfter(clinicContextFilter, BearerTokenAuthenticationFilter.class)
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
                         .requestMatchers("/api/public/**", "/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/api/auth/sync").authenticated()
-                        .requestMatchers("/api/clinics/**").hasRole("SUPER_ADMIN") // Secure clinics endpoint
-                        // Swagger UI and API docs
+                        .requestMatchers("/api/clinics/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
                                 "/swagger-resources/**", "/webjars/**")
                         .permitAll()
-                        // Public endpoints
                         .requestMatchers("/api/species/all").permitAll()
                         .requestMatchers("/api/breeds/species/**").permitAll()
-                        .requestMatchers("/api/owners").permitAll()
-                        // Protected endpoints
-                        .requestMatchers("/api/animals/**").permitAll() // TODO: Review permissions
-                        .requestMatchers("/api/appointments/**").permitAll() // TODO: Review permissions
+                        .requestMatchers("/api/animals/**").permitAll()
+                        .requestMatchers("/api/appointments/**").permitAll()
                         .requestMatchers("/api/medical-history/**").hasAnyRole("ADMIN", "VETERINARIAN")
                         .requestMatchers("/api/lab-tests/**").hasAnyRole("ADMIN", "VETERINARIAN", "STAFF")
                         .requestMatchers("/api/prescriptions/**").hasAnyRole("ADMIN", "VETERINARIAN")
@@ -67,12 +73,8 @@ public class SecurityConfig {
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
-
-        // Custom authorities converter to extract roles from claims
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Collection<GrantedAuthority> authorities = new ArrayList<>();
-
-            // Extract 'roles' claim (custom claim set via Firebase Admin SDK)
             Object rolesClaim = jwt.getClaim("roles");
             if (rolesClaim instanceof List) {
                 List<?> rolesList = (List<?>) rolesClaim;
@@ -82,46 +84,25 @@ public class SecurityConfig {
                     }
                 }
             }
-
-            // Extract 'role' claim (single role scenario)
             Object roleClaim = jwt.getClaim("role");
             if (roleClaim instanceof String) {
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + roleClaim));
             }
-
             return authorities;
         });
-
         return jwtAuthenticationConverter;
     }
 
-    
-	@Bean
-	public CorsConfigurationSource corsConfigurationSource() {
-    	CorsConfiguration configuration = new CorsConfiguration();
-
-    	configuration.setAllowedOrigins(List.of(
-        	"https://hss-cloud-473511.web.app",
-     		"https://hss-cloud-473511.firebaseapp.com",
-        	"http://localhost:3000"
-   	 ))	;
-
-    	configuration.setAllowedMethods(List.of(
-        	"GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
-   	 ));
-
-    	configuration.setAllowedHeaders(List.of(
-        	"Authorization",
-        	"Content-Type",
-           	"Cache-Control"
-    ));
-
-    	configuration.setAllowCredentials(true);
-    	configuration.setMaxAge(3600L);
-
-    	UrlBasedCorsConfigurationSource source =
-            	new UrlBasedCorsConfigurationSource();
-    	source.registerCorsConfiguration("/**", configuration);
-
-    	return source;
-	}
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOriginPatterns(List.of("*"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(Arrays.asList("*"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+}

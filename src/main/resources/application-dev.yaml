@@ -2,7 +2,6 @@ spring:
   config:
     import: optional:file:.env[.properties]
   datasource:
-    # Cloud SQL PostgreSQL için
     url: jdbc:postgresql:///hss_dev?socketFactory=com.google.cloud.sql.postgres.SocketFactory&cloudSqlInstance=${GCP_SQL_INSTANCE_CONNECTION_NAME:hss-cloud-473511:europe-west3:hss-sql}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
@@ -27,7 +26,9 @@ spring:
     gcp:
       enabled: true
       sql:
-        enabled: false
+        enabled: true
+        database-name: hss_dev
+        instance-connection-name: ${GCP_SQL_INSTANCE_CONNECTION_NAME}
       storage:
         enabled: true
       firestore:
@@ -35,8 +36,6 @@ spring:
       firestore-emulator:
         enabled: false
 
-# Firebase Configuration (Lokal için devre dışı)
-# Firebase Configuration
 firebase:
   enabled: true
 

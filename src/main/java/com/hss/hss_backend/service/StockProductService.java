@@ -1,6 +1,7 @@
 package com.hss.hss_backend.service;
 
 import com.hss.hss_backend.dto.StockProductDTO;
+import com.hss.hss_backend.dto.response.BarcodeScanResponse;
 import com.hss.hss_backend.entity.StockProduct;
 import com.hss.hss_backend.entity.StockTransaction;
 import com.hss.hss_backend.exception.ResourceNotFoundException;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -114,5 +116,87 @@ public class StockProductService {
     // Assuming repository has findAll or findTop...
     // For now returning all, or we could add a repository method for top 50
     return stockTransactionRepository.findAll();
+  }
+
+  /**
+   * Scan a barcode and return product information with validation.
+   * 
+   * @param barcode The barcode to scan
+   * @return BarcodeScanResponse with product info and validation status
+   */
+  public BarcodeScanResponse scanBarcode(String barcode) {
+    log.info("Scanning barcode: {}", barcode);
+
+    Optional<StockProduct> productOpt = stockProductRepository.findByBarcode(barcode);
+
+    if (productOpt.isEmpty()) {
+      log.warn("Barcode not found: {}", barcode);
+      return BarcodeScanResponse.notFound(barcode);
+    }
+
+    StockProduct product = productOpt.get();
+
+    // Check if product is active
+    if (!Boolean.TRUE.equals(product.getIsActive())) {
+      log.warn("Product is inactive: {}", barcode);
+      return BarcodeScanResponse.builder()
+          .productId(product.getProductId())
+          .name(product.getName())
+          .barcode(product.getBarcode())
+          .isValid(false)
+          .warningMessage("Ürün aktif değil!")
+          .build();
+    }
+
+    // Check expiration date
+    if (product.getExpirationDate() != null && product.getExpirationDate().isBefore(LocalDate.now())) {
+      log.warn("Product expired: {} - Expiry: {}", barcode, product.getExpirationDate());
+      return BarcodeScanResponse.builder()
+          .productId(product.getProductId())
+          .name(product.getName())
+          .barcode(product.getBarcode())
+          .lotNo(product.getLotNo())
+          .expirationDate(product.getExpirationDate())
+          .isValid(false)
+          .isExpired(true)
+          .warningMessage("Ürün son kullanma tarihi geçmiş! (" + product.getExpirationDate() + ")")
+          .build();
+    }
+
+    // Check stock availability
+    if (product.getCurrentStock() == null || product.getCurrentStock() <= 0) {
+      log.warn("Product out of stock: {}", barcode);
+      return BarcodeScanResponse.outOfStock(product.getProductId(), product.getName(), barcode);
+    }
+
+    // Check low stock warning
+    boolean isLowStock = product.getMinStock() != null && product.getCurrentStock() <= product.getMinStock();
+
+    String warningMessage = null;
+    if (isLowStock) {
+      warningMessage = "Düşük stok uyarısı! Mevcut: " + product.getCurrentStock() + ", Minimum: " + product.getMinStock();
+    }
+
+    // Product is valid
+    return BarcodeScanResponse.builder()
+        .productId(product.getProductId())
+        .name(product.getName())
+        .barcode(product.getBarcode())
+        .lotNo(product.getLotNo())
+        .serialNumber(product.getLotNo()) // Using lotNo as serialNumber for now
+        .productionDate(product.getProductionDate())
+        .expirationDate(product.getExpirationDate())
+        .currentStock(product.getCurrentStock())
+        .unitCost(product.getUnitCost())
+        .sellingPrice(product.getSellingPrice())
+        .category(product.getCategory() != null ? product.getCategory().name() : null)
+        .supplier(product.getSupplier())
+        .location(product.getLocation())
+        .isActive(product.getIsActive())
+        .isValid(true)
+        .isExpired(false)
+        .isLowStock(isLowStock)
+        .warningMessage(warningMessage)
+        .build();
   }
 }

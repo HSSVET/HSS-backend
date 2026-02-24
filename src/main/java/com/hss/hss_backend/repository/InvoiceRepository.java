@@ -19,6 +19,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
        // Basic query methods
        List<Invoice> findByOwnerOwnerId(Long ownerId);
 
+       @Query("SELECT i FROM Invoice i WHERE i.owner.clinic.clinicId = :clinicId")
+       List<Invoice> findByOwnerClinicClinicId(@Param("clinicId") Long clinicId);
+
        List<Invoice> findByStatus(Invoice.Status status);
 
        List<Invoice> findByDateBetween(LocalDate startDate, LocalDate endDate);

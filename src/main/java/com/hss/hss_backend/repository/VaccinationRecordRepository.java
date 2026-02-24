@@ -14,6 +14,8 @@ public interface VaccinationRecordRepository extends JpaRepository<VaccinationRe
 
     List<VaccinationRecord> findByAnimalAnimalId(Long animalId);
 
+    List<VaccinationRecord> findByAnimal_AnimalIdOrderByDateDesc(Long animalId);
+
     List<VaccinationRecord> findByVaccineVaccineId(Long vaccineId);
 
     List<VaccinationRecord> findByVaccineNameContainingIgnoreCase(String vaccineName);
@@ -38,4 +40,8 @@ public interface VaccinationRecordRepository extends JpaRepository<VaccinationRe
 
     @Query("SELECT vr FROM VaccinationRecord vr WHERE vr.veterinarianName = :veterinarianName")
     List<VaccinationRecord> findByVeterinarianName(@Param("veterinarianName") String veterinarianName);
+
+    @Query("SELECT vr FROM VaccinationRecord vr WHERE vr.animal.animalId = :animalId AND vr.vaccine.vaccineId = :vaccineId")
+    List<VaccinationRecord> findByAnimalAnimalIdAndVaccineVaccineId(@Param("animalId") Long animalId, 
+                                                                     @Param("vaccineId") Long vaccineId);
 }

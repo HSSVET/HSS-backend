@@ -113,6 +113,35 @@ public class GlobalExceptionHandler {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
         }
 
+        @ExceptionHandler(DuplicateResourceException.class)
+        public ResponseEntity<ErrorResponse> handleDuplicateResourceException(
+                        DuplicateResourceException ex, WebRequest request) {
+                log.warn("Duplicate resource: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.CONFLICT.value())
+                                .error("Conflict")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+        }
+
+        /** Clinic context missing (X-Clinic-Id / X-Clinic-Slug) or invalid clinic -> 400 so frontend can show message. */
+        @ExceptionHandler(IllegalStateException.class)
+        public ResponseEntity<ErrorResponse> handleIllegalStateException(
+                        IllegalStateException ex, WebRequest request) {
+                log.warn("Illegal state: {}", ex.getMessage());
+                ErrorResponse errorResponse = ErrorResponse.builder()
+                                .timestamp(LocalDateTime.now())
+                                .status(HttpStatus.BAD_REQUEST.value())
+                                .error("Bad Request")
+                                .message(ex.getMessage())
+                                .path(request.getDescription(false).replace("uri=", ""))
+                                .build();
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponse> handleGenericException(
                         Exception ex, WebRequest request) {

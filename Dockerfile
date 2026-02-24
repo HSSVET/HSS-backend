@@ -1,5 +1,5 @@
 # Multi-stage build for HSS Backend
-FROM eclipse-temurin:21-jdk-alpine AS build
+FROM eclipse-temurin:21-jdk AS build
 
 # Set working directory
 WORKDIR /workspace/app
@@ -18,18 +18,17 @@ RUN ./mvnw dependency:go-offline -B
 # Copy source code
 COPY src src
 
-# Build the application
-RUN ./mvnw clean package -DskipTests
+# Build the application (skip tests for faster build)
+RUN ./mvnw clean package -DskipTests -T 1C
 
 # Runtime stage
 FROM eclipse-temurin:21-jre
 
-# Install necessary packages
-# Install curl for healthcheck on Debian-based image
+# Install necessary packages (curl for healthcheck)
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app user (Debian/Ubuntu base)
+# Create app user
 RUN groupadd -g 1001 appgroup && \
     useradd -u 1001 -g appgroup -M -s /usr/sbin/nologin appuser
 
@@ -53,4 +52,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8080}/actuator/health || exit 1
 
 # Run the application with proper JVM settings for Cloud Run
-ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java -Dserver.port=${PORT:-8080} -Dserver.address=0.0.0.0 -Dio.netty.handler.ssl.noOpenSsl=true -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -Djava.security.egd=file:/dev/./urandom -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-dev} -jar app.jar"]

@@ -10,6 +10,7 @@ import com.hss.hss_backend.exception.ResourceNotFoundException;
 import com.hss.hss_backend.mapper.InvoiceMapper;
 import com.hss.hss_backend.mapper.PaymentMapper;
 import com.hss.hss_backend.repository.*;
+import com.hss.hss_backend.security.ClinicContext;
 import com.hss.hss_backend.service.InvoiceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,8 +41,15 @@ public class InvoiceServiceImpl implements InvoiceService {
 
   @Override
   public Invoice createInvoiceForSurgery(Long surgeryId) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot create invoice.");
+    }
     Surgery surgery = surgeryRepository.findById(surgeryId)
         .orElseThrow(() -> new ResourceNotFoundException("Surgery not found"));
+    if (!clinicId.equals(surgery.getAnimal().getOwner().getClinic().getClinicId())) {
+      throw new ResourceNotFoundException("Surgery not found or does not belong to current clinic.");
+    }
 
     if (!"COMPLETED".equals(surgery.getStatus())) {
       // Maybe allow invoicing before completion? For now enforce completion.
@@ -85,8 +93,15 @@ public class InvoiceServiceImpl implements InvoiceService {
 
   @Override
   public Invoice createInvoiceForHospitalization(Long hospitalizationId) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot create invoice.");
+    }
     Hospitalization hospitalization = hospitalizationRepository.findById(hospitalizationId)
         .orElseThrow(() -> new ResourceNotFoundException("Hospitalization not found"));
+    if (!clinicId.equals(hospitalization.getAnimal().getOwner().getClinic().getClinicId())) {
+      throw new ResourceNotFoundException("Hospitalization not found or does not belong to current clinic.");
+    }
 
     if (hospitalization.getDischargeDate() == null) {
       // throw new IllegalStateException("Patient not discharged yet");
@@ -127,25 +142,43 @@ public class InvoiceServiceImpl implements InvoiceService {
     invoice.setAmount(total);
   }
 
-  // New methods for billing endpoints
+  // New methods for billing endpoints (clinic-scoped)
   @Override
   public List<InvoiceResponse> getAllInvoices() {
-    return invoiceRepository.findAll().stream()
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot list invoices.");
+    }
+    return invoiceRepository.findByOwnerClinicClinicId(clinicId).stream()
         .map(invoiceMapper::toResponse)
         .collect(Collectors.toList());
   }
 
   @Override
   public InvoiceResponse getInvoiceById(Long id) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot fetch invoice.");
+    }
     Invoice invoice = invoiceRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("Invoice not found with id: " + id));
+    if (!clinicId.equals(invoice.getOwner().getClinic().getClinicId())) {
+      throw new ResourceNotFoundException("Invoice not found with id: " + id);
+    }
     return invoiceMapper.toResponse(invoice);
   }
 
   @Override
   public InvoiceResponse createInvoice(InvoiceCreateRequest request) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot create invoice.");
+    }
     Animal animal = animalRepository.findById(request.getPatientId())
         .orElseThrow(() -> new ResourceNotFoundException("Patient not found"));
+    if (!clinicId.equals(animal.getOwner().getClinic().getClinicId())) {
+      throw new ResourceNotFoundException("Patient not found or does not belong to current clinic.");
+    }
 
     Invoice invoice = new Invoice();
     invoice.setOwner(animal.getOwner());
@@ -188,15 +221,26 @@ public class InvoiceServiceImpl implements InvoiceService {
 
   @Override
   public List<PaymentResponse> getAllPayments() {
-    return paymentRepository.findAll().stream()
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot list payments.");
+    }
+    return paymentRepository.findByOwnerClinicClinicId(clinicId).stream()
         .map(paymentMapper::toResponse)
         .collect(Collectors.toList());
   }
 
   @Override
   public PaymentResponse createPayment(Long invoiceId, PaymentResponse paymentData) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot create payment.");
+    }
     Invoice invoice = invoiceRepository.findById(invoiceId)
         .orElseThrow(() -> new ResourceNotFoundException("Invoice not found"));
+    if (!clinicId.equals(invoice.getOwner().getClinic().getClinicId())) {
+      throw new ResourceNotFoundException("Invoice not found or does not belong to current clinic.");
+    }
 
     Payment payment = new Payment();
     payment.setInvoice(invoice);
@@ -220,6 +264,34 @@ public class InvoiceServiceImpl implements InvoiceService {
     invoiceRepository.save(invoice);
     
     return paymentMapper.toResponse(saved);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<InvoiceResponse> getInvoicesByOwnerId(Long ownerId) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot list invoices by owner.");
+    }
+    ownerRepository.findByOwnerIdAndClinicClinicId(ownerId, clinicId)
+        .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + ownerId));
+    return invoiceRepository.findByOwnerOwnerId(ownerId).stream()
+        .map(invoiceMapper::toResponse)
+        .collect(Collectors.toList());
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<PaymentResponse> getPaymentsByOwnerId(Long ownerId) {
+    Long clinicId = ClinicContext.getClinicId();
+    if (clinicId == null) {
+      throw new IllegalStateException("Clinic context is missing. Cannot list payments by owner.");
+    }
+    ownerRepository.findByOwnerIdAndClinicClinicId(ownerId, clinicId)
+        .orElseThrow(() -> new ResourceNotFoundException("Owner not found with ID: " + ownerId));
+    return paymentRepository.findByOwner_OwnerId(ownerId).stream()
+        .map(paymentMapper::toResponse)
+        .collect(Collectors.toList());
   }
 
   @Override

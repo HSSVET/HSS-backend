@@ -24,14 +24,37 @@ spring:
     validate-on-migrate: false
   
   # GCP Cloud SQL Configuration (Default - will be overridden by profiles)
+  datasource:
+    url: jdbc:postgresql:///${DB_NAME:hss_dev}?cloudSqlInstance=${GCP_SQL_INSTANCE_CONNECTION_NAME}&socketFactory=com.google.cloud.sql.postgres.SocketFactory
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  
   cloud:
     gcp:
-      sql:
-        enabled: true
-        database-name: ${DB_NAME:hss_database}
-        instance-connection-name: ${GCP_SQL_INSTANCE_CONNECTION_NAME:}
       storage:
         bucket-name: ${GCP_STORAGE_BUCKET:hss-storage-bucket}
+  
+  # Mail Configuration
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+    from: ${MAIL_FROM:noreply@hss.com}
+    enabled: ${MAIL_ENABLED:true}
   
   # Security Configuration
   security:
@@ -49,7 +72,7 @@ firebase:
 
 # Server Configuration
 server:
-  port: ${PORT:8080}
+  port: ${PORT:8090}
   servlet:
     context-path: /
 
@@ -68,6 +91,43 @@ management:
     export:
       prometheus:
         enabled: true
+
+# Reminder Configuration
+reminder:
+  default:
+    hours:
+      before: 24
+  retry:
+    max: 3
+
+# SMS Configuration
+sms:
+  enabled: ${SMS_ENABLED:false}
+  provider: ${SMS_PROVIDER:none}
+
+# Push Notification Configuration
+push:
+  notification:
+    enabled: ${PUSH_NOTIFICATION_ENABLED:true}
+
+# Stock Alert Configuration
+stock:
+  alert:
+    critical:
+      threshold: ${STOCK_ALERT_CRITICAL_THRESHOLD:0.2}  # min_stock'un %20'si kritik seviye
+    expiring:
+      days: ${STOCK_ALERT_EXPIRING_DAYS:30}  # 30 gün içinde sona erecek ürünler için uyarı
+
+# Backup Configuration
+backup:
+  database:
+    path: ${BACKUP_DATABASE_PATH:/tmp/backups/database}
+  files:
+    path: ${BACKUP_FILES_PATH:/tmp/backups/files}
+    source: ${BACKUP_FILES_SOURCE:/tmp/uploads}
+  upload:
+    to:
+      cloud: ${BACKUP_UPLOAD_TO_CLOUD:true}
 
 # Logging Configuration
 logging:
