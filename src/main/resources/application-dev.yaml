@@ -23,6 +23,11 @@ spring:
     enabled: true
     out-of-order: true
     validate-on-migrate: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: https://securetoken.google.com/hss-cloud-473511
   cloud:
     gcp:
       enabled: true
