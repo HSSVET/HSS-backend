@@ -37,8 +37,15 @@ public class ClinicServiceImpl implements ClinicService {
 
     Clinic clinic = clinicMapper.toEntity(request);
 
-    // Generate unique slug
-    clinic.setSlug(generateUniqueSlug(request.getName()));
+    // Use provided slug or fallback to generating one
+    String desiredSlug = request.getSlug() != null && !request.getSlug().isBlank()
+        ? com.hss.hss_backend.util.SlugUtils.makeSlug(request.getSlug())
+        : com.hss.hss_backend.util.SlugUtils.makeSlug(request.getName());
+
+    if (clinicRepository.findBySlug(desiredSlug).isPresent()) {
+      throw new IllegalArgumentException("Etki alanı (slug) daha önce alınmış: " + desiredSlug);
+    }
+    clinic.setSlug(desiredSlug);
 
     // Generate License
     String type = request.getLicenseType() != null ? request.getLicenseType() : "STRT";

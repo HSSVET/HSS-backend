@@ -24,4 +24,7 @@ public class ClinicCreateRequest {
 
   // e.g. STRT, PRO, ENT
   private String licenseType;
+
+  // Custom manual URL slug
+  private String slug;
 }
