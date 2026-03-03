@@ -55,7 +55,8 @@ public class ClinicServiceImpl implements ClinicService {
       try {
         String firstName = request.getAdminFirstName() != null ? request.getAdminFirstName() : "Clinic";
         String lastName = request.getAdminLastName() != null ? request.getAdminLastName() : "Admin";
-        userService.createClinicAdmin(savedClinic, request.getAdminEmail(), firstName, lastName);
+        userService.createClinicAdmin(savedClinic, request.getAdminEmail(), firstName, lastName,
+            request.getAdminPassword());
         log.info("Auto-provisioned admin for clinic: {}", savedClinic.getName());
       } catch (Exception e) {
         log.error("Failed to auto-provision clinic admin: {}", e.getMessage());

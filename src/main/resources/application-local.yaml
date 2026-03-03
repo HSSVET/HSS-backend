@@ -63,7 +63,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/test-issuer
+          issuer-uri: "https://securetoken.google.com/hss-cloud-473511"
 
 # Firebase Configuration for Local (disabled)
 firebase:

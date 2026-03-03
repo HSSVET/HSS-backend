@@ -20,6 +20,7 @@ public class ClinicCreateRequest {
   private String adminEmail;
   private String adminFirstName;
   private String adminLastName;
+  private String adminPassword;
 
   // e.g. STRT, PRO, ENT
   private String licenseType;

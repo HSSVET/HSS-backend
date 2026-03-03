@@ -61,7 +61,7 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${JWT_ISSUER_URI:https://securetoken.google.com/hss-cloud-473511}
+          issuer-uri: "https://securetoken.google.com/${firebase.project-id:hss-cloud-473511}"
 
 # Firebase Configuration
 firebase:

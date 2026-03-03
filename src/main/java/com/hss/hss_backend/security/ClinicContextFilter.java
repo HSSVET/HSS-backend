@@ -17,12 +17,13 @@ import java.util.regex.Pattern;
 
 /**
  * Resolves the current clinic from (in order):
- *   1. JWT claim "clinic_id"
- *   2. X-Clinic-Id request header
- *   3. X-Clinic-Slug request header
- *   4. Referer URL pattern /clinic/{slug}/...
+ * 1. JWT claim "clinic_id"
+ * 2. X-Clinic-Id request header
+ * 3. X-Clinic-Slug request header
+ * 4. Referer URL pattern /clinic/{slug}/...
  *
- * Registered in Security filter chain after BearerTokenAuthenticationFilter (see SecurityConfig).
+ * Registered in Security filter chain after BearerTokenAuthenticationFilter
+ * (see SecurityConfig).
  */
 @Slf4j
 public class ClinicContextFilter extends OncePerRequestFilter {
@@ -83,7 +84,14 @@ public class ClinicContextFilter extends OncePerRequestFilter {
       return id;
     }
 
-    // 4. Referer URL (/clinic/{slug}/...)
+    // 4. Subdomain (Host header)
+    id = fromSubdomain(request);
+    if (id != null) {
+      log.debug("Clinic resolved from Subdomain: {}", id);
+      return id;
+    }
+
+    // 5. Referer URL (/clinic/{slug}/...)
     id = fromReferer(request);
     if (id != null) {
       log.debug("Clinic resolved from Referer URL: {}", id);
@@ -101,10 +109,15 @@ public class ClinicContextFilter extends OncePerRequestFilter {
     }
 
     Object claim = jwt.getClaim("clinic_id");
-    if (claim instanceof Long l) return l;
-    if (claim instanceof Integer i) return i.longValue();
+    if (claim instanceof Long l)
+      return l;
+    if (claim instanceof Integer i)
+      return i.longValue();
     if (claim instanceof String s) {
-      try { return Long.parseLong(s); } catch (NumberFormatException ignored) {}
+      try {
+        return Long.parseLong(s);
+      } catch (NumberFormatException ignored) {
+      }
     }
     return null;
   }
@@ -112,7 +125,8 @@ public class ClinicContextFilter extends OncePerRequestFilter {
   /** 2. Parse a numeric header value. */
   private Long fromHeader(HttpServletRequest request, String headerName) {
     String value = request.getHeader(headerName);
-    if (value == null || value.isBlank()) return null;
+    if (value == null || value.isBlank())
+      return null;
     try {
       return Long.parseLong(value.trim());
     } catch (NumberFormatException e) {
@@ -123,19 +137,43 @@ public class ClinicContextFilter extends OncePerRequestFilter {
   /** 3. Resolve clinic from X-Clinic-Slug header via DB lookup. */
   private Long fromSlugHeader(HttpServletRequest request) {
     String slug = request.getHeader("X-Clinic-Slug");
-    if (slug == null || slug.isBlank()) return null;
+    if (slug == null || slug.isBlank())
+      return null;
     return clinicRepository.findBySlug(slug.trim())
         .map(clinic -> clinic.getClinicId())
         .orElse(null);
   }
 
+  /** 4. Resolve clinic from Subdomain. */
+  private Long fromSubdomain(HttpServletRequest request) {
+    String host = request.getHeader("Host");
+    if (host == null || host.isBlank())
+      return null;
+
+    // e.g., hedef-vet.localhost:3000 or hedef-vet.hss.com
+    String[] parts = host.split("\\.");
+    if (parts.length > 0) {
+      String slug = parts[0];
+      // Ignore common non-clinic subdomains
+      if (!slug.equalsIgnoreCase("www") && !slug.equalsIgnoreCase("admin") && !slug.equalsIgnoreCase("portal")
+          && !slug.equalsIgnoreCase("localhost") && !slug.equalsIgnoreCase("127") && !slug.startsWith("192")) {
+        return clinicRepository.findBySlug(slug)
+            .map(clinic -> clinic.getClinicId())
+            .orElse(null);
+      }
+    }
+    return null;
+  }
+
   /** 4. Parse /clinic/{slug}/ from the Referer header and resolve via DB. */
   private Long fromReferer(HttpServletRequest request) {
     String referer = request.getHeader("Referer");
-    if (referer == null || referer.isBlank()) return null;
+    if (referer == null || referer.isBlank())
+      return null;
 
     Matcher matcher = REFERER_SLUG_PATTERN.matcher(referer);
-    if (!matcher.find()) return null;
+    if (!matcher.find())
+      return null;
 
     String slug = matcher.group(1);
     return clinicRepository.findBySlug(slug)

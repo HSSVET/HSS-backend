@@ -300,7 +300,7 @@ public class UserService {
      * Creates a new Clinic Admin user (Staff + UserAccount + Role + Firebase User)
      */
     public UserAccount createClinicAdmin(com.hss.hss_backend.entity.Clinic clinic, String email, String firstName,
-            String lastName) {
+            String lastName, String password) {
         // 1. Create Staff
         Staff staff = Staff.builder()
                 .clinic(clinic)
@@ -322,7 +322,9 @@ public class UserService {
             com.google.firebase.auth.UserRecord.CreateRequest request = new com.google.firebase.auth.UserRecord.CreateRequest()
                     .setEmail(email)
                     .setEmailVerified(false)
-                    .setPassword("Admin123!") // Default temporary password
+                    .setPassword(password != null && !password.isBlank() ? password : "Admin123!") // Use provided or
+                                                                                                   // default
+
                     .setDisplayName(firstName + " " + lastName)
                     .setDisabled(false);
 
@@ -336,6 +338,18 @@ public class UserService {
             } catch (com.google.firebase.auth.FirebaseAuthException ex) {
                 throw new RuntimeException("Failed to create or fetch Firebase user: " + ex.getMessage());
             }
+        }
+
+        // 2b. Set Custom Claims for Multi-Tenancy Isolation
+        try {
+            java.util.Map<String, Object> claims = new java.util.HashMap<>();
+            claims.put("clinic_id", clinic.getClinicId());
+            claims.put("clinic_slug", clinic.getSlug());
+            claims.put("user_type", "STAFF"); // Standard or ADMIN
+            claims.put("roles", java.util.Arrays.asList("ADMIN"));
+            firebaseAuth.setCustomUserClaims(firebaseUid, claims);
+        } catch (com.google.firebase.auth.FirebaseAuthException e) {
+            System.err.println("Warning: failed to set custom claims for auto-provisioned admin: " + e.getMessage());
         }
 
         // 3. Create UserAccount
