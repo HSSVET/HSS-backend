@@ -22,7 +22,7 @@ BEGIN
     
     IF v_owner_id IS NULL THEN
         INSERT INTO owner (clinic_id, first_name, last_name, email, phone, address, created_at, created_by) 
-        VALUES (v_clinic_id, 'Demo', 'Admin', 'demo.admin@hss.com', '+90 500 000 00 00', 'Demo Address', CURRENT_TIMESTAMP, 'SYSTEM') 
+        VALUES (v_clinic_id, 'Demo', 'Admin', 'demo.admin@hss.com', '+90 500 000 00 00', 'Demo Address', CURRENT_TIMESTAMP, NULL) 
         RETURNING owner_id INTO v_owner_id;
     END IF;
 
@@ -43,7 +43,7 @@ BEGIN
     
     IF v_animal_id IS NULL THEN
         INSERT INTO animal (owner_id, clinic_id, name, species_id, breed_id, gender, birth_date, weight, height, sterilized, color, microchip_no, status, created_at, created_by)
-        VALUES (v_owner_id, v_clinic_id, 'Pamuk', v_species_id, v_breed_id, 'FEMALE', CURRENT_DATE - INTERVAL '2 years', 4.5, 25.0, true, 'Beyaz', '999000111222', 'ACTIVE', CURRENT_TIMESTAMP, 'SYSTEM')
+        VALUES (v_owner_id, v_clinic_id, 'Pamuk', v_species_id, v_breed_id, 'FEMALE', CURRENT_DATE - INTERVAL '2 years', 4.5, 25.0, true, 'Beyaz', '999000111222', 'ACTIVE', CURRENT_TIMESTAMP, NULL)
         RETURNING animal_id INTO v_animal_id;
     ELSE
         -- Update existing Pamuk to have details
@@ -52,11 +52,11 @@ BEGIN
 
     -- 6. Insert Conditions for Pamuk if not exist
     INSERT INTO animal_conditions (animal_id, type, name, severity, diagnosis_date, status, notes, created_by)
-    SELECT v_animal_id, 'ALLERGY', 'Polen Alerjisi', 'MILD', CURRENT_DATE - INTERVAL '1 year', 'ACTIVE', 'Bahar aylarında hapşırma ve kaşıntı.', 'SYSTEM'
+    SELECT v_animal_id, 'ALLERGY', 'Polen Alerjisi', 'MILD', CURRENT_DATE - INTERVAL '1 year', 'ACTIVE', 'Bahar aylarında hapşırma ve kaşıntı.', NULL
     WHERE NOT EXISTS (SELECT 1 FROM animal_conditions WHERE animal_id = v_animal_id AND name = 'Polen Alerjisi');
 
     INSERT INTO animal_conditions (animal_id, type, name, severity, diagnosis_date, status, notes, created_by)
-    SELECT v_animal_id, 'CHRONIC_CONDITION', 'Astım', 'MODERATE', CURRENT_DATE - INTERVAL '6 months', 'MANAGED', 'Stres durumlarında atak geçirebilir.', 'SYSTEM'
+    SELECT v_animal_id, 'CHRONIC_CONDITION', 'Astım', 'MODERATE', CURRENT_DATE - INTERVAL '6 months', 'MANAGED', 'Stres durumlarında atak geçirebilir.', NULL
     WHERE NOT EXISTS (SELECT 1 FROM animal_conditions WHERE animal_id = v_animal_id AND name = 'Astım');
 
 END $$;

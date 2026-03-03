@@ -8,7 +8,7 @@ SELECT
     CURRENT_DATE - INTERVAL '1 year',
     'ACTIVE',
     'Tavuk içeren mamalarda kusma ve kaşıntı yapıyor.',
-    'SYSTEM_DEMO'
+    NULL
 FROM animal a 
 JOIN owner o ON a.owner_id = o.owner_id 
 WHERE a.name = 'Boncuk' AND o.email = 'mehmet.demir@demo.com'
@@ -23,7 +23,7 @@ SELECT
     CURRENT_DATE - INTERVAL '6 months',
     'MANAGED',
     'Düzenli kan tahlili ve renal mama kullanımı gerekli.',
-    'SYSTEM_DEMO'
+    NULL
 FROM animal a 
 JOIN owner o ON a.owner_id = o.owner_id 
 WHERE a.name = 'Boncuk' AND o.email = 'mehmet.demir@demo.com'
@@ -46,7 +46,7 @@ SELECT
     CURRENT_DATE - INTERVAL '2 years',
     'MANAGED',
     'Düzenli dış parazit uygulaması şart.',
-    'SYSTEM_DEMO'
+    NULL
 FROM animal a 
 JOIN owner o ON a.owner_id = o.owner_id 
 WHERE a.name = 'Rex' AND o.email = 'mehmet.demir@demo.com'
@@ -61,7 +61,7 @@ SELECT
     CURRENT_DATE - INTERVAL '1 year',
     'ACTIVE',
     'Aşırı egzersizden kaçınılmalı, eklem destekleyici kullanılmalı.',
-    'SYSTEM_DEMO'
+    NULL
 FROM animal a 
 JOIN owner o ON a.owner_id = o.owner_id 
 WHERE a.name = 'Rex' AND o.email = 'mehmet.demir@demo.com'
