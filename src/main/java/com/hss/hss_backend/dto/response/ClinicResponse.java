@@ -18,4 +18,8 @@ public class ClinicResponse {
   private java.time.LocalDate licenseEndDate;
   private String licenseStatus;
   private String settings;
+
+  // Inherited from BaseEntity
+  private java.time.LocalDateTime createdAt;
+  private java.time.LocalDateTime updatedAt;
 }
